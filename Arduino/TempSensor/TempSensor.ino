@@ -32,7 +32,7 @@ double Thermistor(int RawADC) {
  Temp = log(Temp/50000.0);
  Temp = 1 / (3.354016E-03 + 2.460382E-04 * Temp + 3.405377E-06 * Temp * Temp +  1.034240E-07 * Temp * Temp * Temp);
  Temp = Temp - 273.15;            // Convert Kelvin to Celcius
- Temp = (Temp * 9.0)/ 5.0 + 32.0; // Convert Celcius to Fahrenheit
+ Temp = (Temp * 9.0)/ 5.0 + 34.0; // Convert Celcius to Fahrenheit
  return Temp;
 }
 
