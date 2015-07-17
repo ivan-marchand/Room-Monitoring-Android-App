@@ -1,25 +1,14 @@
 /*
-  Analog input, analog output, serial output
-
- Reads an analog input pin, maps the result to a range from 0 to 255
- and uses the result to set the pulsewidth modulation (PWM) of an output pin.
- Also prints the results to the serial monitor.
-
- The circuit:
- * potentiometer connected to analog pin 0.
-   Center pin of the potentiometer goes to the analog pin.
-   side pins of the potentiometer go to +5V and ground
- * LED connected from digital pin 9 to ground
-
- created 29 Dec. 2008
- modified 9 Apr 2012
- by Tom Igoe
-
- This example code is in the public domain.
 
  */
 #include <math.h>
 #include <Bridge.h>
+#include <DHT.h>
+
+#define DHTPIN 4     // what pin we're connected to
+#define DHTTYPE DHT11   // DHT 11
+
+DHT dht(DHTPIN, DHTTYPE);
 
 // These constants won't change.  They're used to give names
 // to the pins used:
@@ -45,14 +34,20 @@ void setup() {
 
 void loop() {
   int sensorValue = analogRead(analogInPin);
-  double temp = Thermistor(sensorValue);
+  //double temp = Thermistor(sensorValue);
+  double temp = dht.readTemperature(true);
+  double humidity = dht.readHumidity();
 
   // print the results to the serial monitor:
   Serial.print("temp = " );
   Serial.print(temp);
   Serial.print("\n" );
+  Serial.print("humidity = " );
+  Serial.print(humidity);
+  Serial.print("\n" );
 
   Bridge.put("temp", String(temp));
+  Bridge.put("humidity", String(humidity));
 
   // Wait 10s
   delay(10000);
