@@ -1,5 +1,6 @@
 package marchandivan.babyroommonitoring;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
@@ -11,39 +12,70 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
     private Handler mHandler;
     private int mInterval = 20000;
-    private String mYunHost;
-    private String mYunPort;
+    private AlarmManager mAlarmManager;
+    private RestClient mRestClient;
 
-    protected class UpdateRoom extends AsyncTask<String, Void, JSONObject> {
+    protected class UpdateRoom extends AsyncTask<Void, Void, JSONObject> {
 
-        protected JSONObject doInBackground(String... urls) {
-            RestClient restClient = new RestClient();
-            return restClient.get(urls[0]);
+        protected JSONObject doInBackground(Void...voids) {
+            return mRestClient.get();
         }
 
         protected void onPostExecute(JSONObject result) {
             try {
-                // Update the text view
-                TextView textView = (TextView) findViewById(R.id.room_temperature);
-                textView.setText(result.getString("value") + " F");
+                if (result.has("value")) {
+                    updateDisplay(result);
+                    AlarmManager.ComparisonResult comparisonResult = mAlarmManager.compare(Integer.parseInt(tempStr));
+                    if (comparisonResult != AlarmManager.ComparisonResult.WITHIN) {
+                        Log.d("UpdateRoom", "Start Alarm");
+                        /*Intent intent = new Intent(getThis(), Alarm.class);
+                        startActivity(intent);*/
+                    }
+                    else {
+                        mAlarmManager.stop();
+                    }
+
+                }
+                else {
+                    toast("Unable to retrieve room temperature");
+                }
             }
             catch (Exception e) {
-                Log.d("UpdateRoom", "Error " + e.getMessage());
+                Log.d("UpdateRoom", "Error " + e.toString());
             }
         }
+    }
+
+    private Activity getThis() {
+        return this;
+    }
+
+    private void toast(String message) {
+        Toast toast = Toast.makeText(getThis(), message, Toast.LENGTH_SHORT);
+        toast.show();
+    }
+
+    private void updateDisplay(JSONObject result) {
+        // Update the text view
+        TextView textView = (TextView) findViewById(R.id.room_temperature);
+        textView.setText(result.getString("value") + " F");
     }
 
     private Runnable mRoomChecker = new Runnable() {
         @Override
         public void run() {
-            new UpdateRoom().execute("http://" + mYunHost + ":" + mYunPort + "/data/get/temp");
-            mHandler.postDelayed(mRoomChecker, mInterval);
+            try {
+                new UpdateRoom().execute();
+            } finally {
+                mHandler.postDelayed(mRoomChecker, mInterval);
+            }
         }
     };
 
@@ -52,6 +84,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mHandler = new Handler();
+        mRestClient = new RestClient();
+        mAlarmManager = new AlarmManager(this);
     }
 
     @Override
@@ -59,8 +93,8 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         // Get host, port from settings
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-        mYunHost = sharedPref.getString("yun_host", "");
-        mYunPort = sharedPref.getString("yun_port", "");
+        mAlarmManager.configure(sharedPref);
+        mRestClient.configure(sharedPref);
         mRoomChecker.run();
     }
 

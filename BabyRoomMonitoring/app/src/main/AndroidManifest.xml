@@ -31,8 +31,20 @@
             android:name=".MonitorRoom"
             android:enabled="true"
             android:exported="true"
-            android:process="marchandivan.babyroommonitoring.monitor">>
+            android:process="marchandivan.babyroommonitoring.monitor" >
+>
         </service>
+
+        <activity
+            android:name=".Alarm"
+            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:label="@string/title_activity_alarm"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/FullscreenTheme" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="marchandivan.babyroommonitoring.MainActivity" />
+        </activity>
     </application>
 
 </manifest>

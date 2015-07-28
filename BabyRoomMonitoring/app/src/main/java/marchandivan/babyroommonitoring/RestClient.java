@@ -4,6 +4,7 @@ package marchandivan.babyroommonitoring;
  * Created by imarchand on 6/28/2015.
  */
 
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import org.json.JSONObject;
@@ -15,6 +16,13 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class RestClient {
+    private String mYunHost;
+    private String mYunPort;
+
+    public void configure(SharedPreferences sharedPreferences) {
+        mYunHost = sharedPreferences.getString("yun_host", "");
+        mYunPort = sharedPreferences.getString("yun_port", "");
+    }
 
     public String readJSONFeed(String urlString) {
         StringBuilder stringBuilder = new StringBuilder();
@@ -41,12 +49,15 @@ public class RestClient {
         return stringBuilder.toString();
     }
 
-    protected JSONObject get(String url) {
+    protected JSONObject get() {
         JSONObject json = new JSONObject();
-        try {
-            json = new JSONObject(readJSONFeed(url));
-        } catch (Exception e) {
-            Log.d("RestClient", "Error " + e.getMessage());
+        if (!mYunHost.isEmpty() && !mYunPort.isEmpty()) {
+            try {
+                String url = "http://" + mYunHost + ":" + mYunPort + "/data/get/temp";
+                json = new JSONObject(readJSONFeed(url));
+            } catch (Exception e) {
+                Log.d("RestClient", "Error " + e.getMessage());
+            }
         }
         return json;
     }

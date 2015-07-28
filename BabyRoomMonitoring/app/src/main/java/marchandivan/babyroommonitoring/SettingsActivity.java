@@ -105,15 +105,16 @@ public class SettingsActivity extends PreferenceActivity {
         addPreferencesFromResource(R.xml.pref_alarm);
 
         // Add 'data and sync' preferences, and a corresponding header.
-        addPreferencesFromResource(R.xml.pref_data_sync);
+        //addPreferencesFromResource(R.xml.pref_data_sync);
 
         // Bind the summaries of EditText/List/Dialog/Ringtone preferences to
         // their values. When their values change, their summaries are updated
         // to reflect the new value, per the Android Design guidelines.
         bindPreferenceSummaryToValue(findPreference("yun_host"));
         bindPreferenceSummaryToValue(findPreference("yun_port"));
-        bindPreferenceSummaryToValue(findPreference("notifications_new_message_ringtone"));
-        bindPreferenceSummaryToValue(findPreference("sync_frequency"));
+        bindPreferenceSummaryToValue(findPreference("alarm_ringtone"));
+        bindPreferenceSummaryToValue(findPreference("alarm_max_value"));
+        bindPreferenceSummaryToValue(findPreference("alarm_min_value"));
     }
 
     /**
