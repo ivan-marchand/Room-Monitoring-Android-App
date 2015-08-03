@@ -110,8 +110,8 @@ public class SettingsActivity extends PreferenceActivity {
         // Bind the summaries of EditText/List/Dialog/Ringtone preferences to
         // their values. When their values change, their summaries are updated
         // to reflect the new value, per the Android Design guidelines.
-        bindPreferenceSummaryToValue(findPreference("yun_host"));
-        bindPreferenceSummaryToValue(findPreference("yun_port"));
+        bindPreferenceSummaryToValue(findPreference("server_host"));
+        bindPreferenceSummaryToValue(findPreference("server_port"));
         bindPreferenceSummaryToValue(findPreference("alarm_ringtone"));
         bindPreferenceSummaryToValue(findPreference("alarm_max_value"));
         bindPreferenceSummaryToValue(findPreference("alarm_min_value"));

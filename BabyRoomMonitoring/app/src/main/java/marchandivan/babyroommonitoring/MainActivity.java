@@ -19,7 +19,7 @@ import org.json.JSONObject;
 public class MainActivity extends AppCompatActivity {
     private Handler mHandler;
     private int mInterval = 20000;
-    private AlarmManager mAlarmManager;
+    //private AlarmManager mAlarmManager;
     private RestClient mRestClient;
 
     protected class UpdateRoom extends AsyncTask<Void, Void, JSONObject> {
@@ -30,17 +30,17 @@ public class MainActivity extends AppCompatActivity {
 
         protected void onPostExecute(JSONObject result) {
             try {
-                if (result.has("value")) {
+                if (result.has("temperature")) {
                     updateDisplay(result);
-                    AlarmManager.ComparisonResult comparisonResult = mAlarmManager.compare(Integer.parseInt(tempStr));
+                    /*AlarmManager.ComparisonResult comparisonResult = mAlarmManager.compare(Integer.parseInt(result.getString("temperature")));
                     if (comparisonResult != AlarmManager.ComparisonResult.WITHIN) {
                         Log.d("UpdateRoom", "Start Alarm");
-                        /*Intent intent = new Intent(getThis(), Alarm.class);
-                        startActivity(intent);*/
+                        Intent intent = new Intent(getThis(), Alarm.class);
+                        startActivity(intent);
                     }
                     else {
                         mAlarmManager.stop();
-                    }
+                    }*/
 
                 }
                 else {
@@ -63,9 +63,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateDisplay(JSONObject result) {
+        try {
         // Update the text view
         TextView textView = (TextView) findViewById(R.id.room_temperature);
-        textView.setText(result.getString("value") + " F");
+        textView.setText(result.getString("temperature") + " F");
+        }
+        catch (Exception e) {
+            Log.d("UpdateDisplay", "Error " + e.toString());
+        }
     }
 
     private Runnable mRoomChecker = new Runnable() {
@@ -85,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         mHandler = new Handler();
         mRestClient = new RestClient();
-        mAlarmManager = new AlarmManager(this);
+        //mAlarmManager = new AlarmManager(this);
     }
 
     @Override
@@ -93,7 +98,7 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         // Get host, port from settings
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-        mAlarmManager.configure(sharedPref);
+        //mAlarmManager.configure(sharedPref);
         mRestClient.configure(sharedPref);
         mRoomChecker.run();
     }
