@@ -1,16 +1,25 @@
-package marchandivan.babyroommonitoring;
+package marchandivan.RoomMonitoring;
 
-import marchandivan.babyroommonitoring.util.SystemUiHider;
+import marchandivan.RoomMonitoring.util.SystemUiHider;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.MenuItem;
 import android.support.v4.app.NavUtils;
+import android.view.Window;
+import android.view.WindowManager;
 
 
 /**
@@ -19,7 +28,9 @@ import android.support.v4.app.NavUtils;
  *
  * @see SystemUiHider
  */
-public class Alarm extends Activity {
+public class AlarmActivity extends Activity {
+    private Ringtone mRingtone;
+
     /**
      * Whether or not the system UI should be auto-hidden after
      * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
@@ -52,11 +63,11 @@ public class Alarm extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_alarm);
+        setContentView(marchandivan.RoomMonitoring.R.layout.activity_alarm);
         setupActionBar();
 
-        final View controlsView = findViewById(R.id.fullscreen_content_controls);
-        final View contentView = findViewById(R.id.fullscreen_content);
+        final View controlsView = findViewById(marchandivan.RoomMonitoring.R.id.fullscreen_content_controls);
+        final View contentView = findViewById(marchandivan.RoomMonitoring.R.id.fullscreen_content);
 
         // Set up an instance of SystemUiHider to control the system UI for
         // this activity.
@@ -115,7 +126,32 @@ public class Alarm extends Activity {
         // Upon interacting with UI controls, delay any scheduled hide()
         // operations to prevent the jarring behavior of controls going away
         // while interacting with the UI.
-        findViewById(R.id.dummy_button).setOnTouchListener(mDelayHideTouchListener);
+        findViewById(marchandivan.RoomMonitoring.R.id.stop_button).setOnTouchListener(mDelayHideTouchListener);
+
+        Window window = getWindow();
+        window.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
+        window.addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        // Configure alarm
+        this.configure();
+
+        // Play ring tone
+        this.playRingtone();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+
+        // Stop ring tone
+        this.stopRingtone();
     }
 
     @Override
@@ -135,7 +171,7 @@ public class Alarm extends Activity {
     private void setupActionBar() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
             // Show the Up button in the action bar.
-            getActionBar().setDisplayHomeAsUpEnabled(true);
+            getActionBar().hide();
         }
     }
 
@@ -188,5 +224,35 @@ public class Alarm extends Activity {
     private void delayedHide(int delayMillis) {
         mHideHandler.removeCallbacks(mHideRunnable);
         mHideHandler.postDelayed(mHideRunnable, delayMillis);
+    }
+
+    public void playRingtone() {
+        if (mRingtone != null) {
+            Log.d("Alarm", "Playing !");
+            mRingtone.play();
+        }
+    }
+
+    public void stopAlarm(View view) {
+        this.stopRingtone();
+    }
+    public void stopRingtone() {
+        if (mRingtone != null && mRingtone.isPlaying()) {
+            mRingtone.stop();
+        }
+    }
+
+    public void configure() {
+
+        // Deactivate alarm if already ringing
+        this.stopRingtone();
+
+        // Get alarm Ringtone
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        Uri ringtoneUri = Uri.parse(sharedPreferences.getString("alarm_ringtone", ""));
+        if (ringtoneUri != null) {
+            mRingtone = RingtoneManager.getRingtone(this, ringtoneUri);
+            Log.d("Alarm", ringtoneUri.toString());
+        }
     }
 }

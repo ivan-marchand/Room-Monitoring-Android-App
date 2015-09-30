@@ -6,7 +6,6 @@
 
  */
 
-//#include <math.h>
 #include <Bridge.h>
 #include <YunServer.h>
 #include <YunClient.h>
@@ -15,28 +14,15 @@
 
 #include <DHT.h>
 #define DHTPIN 4     // what pin we're connected to
-#define DHTTYPE DHT11   // DHT 11
+#define DHTTYPE DHT22   // DHT 11
 
 
 DHT dht(DHTPIN, DHTTYPE);
 YunServer server;
 IRsend irsend;
 
-
-// These constants won't change.  They're used to give names
-// to the pins used:
-//const int analogInPin = A0;  // Analog input pin that the potentiometer is attached to
-
-
-/*double Thermistor(int RawADC) {
- double Temp;
- Temp = 50000.0*(1024.0/RawADC-1);
- Temp = log(Temp/50000.0);
- Temp = 1 / (3.354016E-03 + 2.460382E-04 * Temp + 3.405377E-06 * Temp * Temp +  1.034240E-07 * Temp * Temp * Temp);
- Temp = Temp - 273.15;            // Convert Kelvin to Celcius
- Temp = (Temp * 9.0)/ 5.0 + 34.0; // Convert Celcius to Fahrenheit
- return Temp;
-}*/
+IRrecv irrecv(11);
+decode_results results;
 
 void setup() {
   // initialize serial communications at 9600 bps:
@@ -46,8 +32,59 @@ void setup() {
   // Initialize Server
   server.listenOnLocalhost();
   server.begin();
+  irrecv.enableIRIn(); // Start the receiver
 }
 
+void addJsonString(YunClient client, String key, String value, bool first=false) {
+    if (first) {
+      client.print("{\"");
+    }
+    else {
+      client.print(",\"");
+    }
+    client.print(key);
+    client.print("\":\"" );
+    client.print(value);
+    client.print("\"" );
+}
+
+void addJsonFloat(YunClient client, String key, float value, bool first=false) {
+    if (first) {
+      client.print("{\"");
+    }
+    else {
+      client.print(",\"");
+    }
+    client.print(key);
+    client.print("\":" );
+    client.print(value);
+}
+
+void addJsonInt(YunClient client, String key, int value, bool first=false) {
+    if (first) {
+      client.print("{\"");
+    }
+    else {
+      client.print(",\"");
+    }
+    client.print(key);
+    client.print("\":" );
+    client.print(value);
+}
+
+void addJsonULong(YunClient client, String key, unsigned long value, bool first=false) {
+    if (first) {
+      client.print("{\"");
+    }
+    else {
+      client.print(",\"");
+    }
+    client.print(key);
+    client.print("\":" );
+    client.print(value);
+}
+
+#ifdef IR_RAW 
 void sendIRRaw(YunClient client) {
   unsigned int data[200] = {0};
   unsigned int i = 0;
@@ -66,13 +103,56 @@ void sendIRRaw(YunClient client) {
   {
     hz = client.parseInt();
   }
-  client.print(",\"size\":\"");
-  client.print(i+1);
-  client.print("\"");
-  client.print(",\"khz\":\"");
-  client.print(hz);
-  client.print("\"");
+  addJson(client, "size", i+1);
+  addJson(client, "khz", hz);
+
+  // Send IR code
   irsend.sendRaw(data, i+1, hz);
+}
+#endif
+
+void dumpToJson(YunClient client, decode_results *results) {
+  int count = results->rawlen;
+  if (results->decode_type == UNKNOWN) {
+    addJsonString(client, "type", "UNKNOWN");
+  }
+  else if (results->decode_type == NEC) {
+    addJsonString(client, "type", "NEC");
+  }
+  else if (results->decode_type == SONY) {
+    addJsonString(client, "type", "SONY");
+  }
+  else if (results->decode_type == RC5) {
+    addJsonString(client, "type", "RC5");
+  }
+  else if (results->decode_type == RC6) {
+    addJsonString(client, "type", "RC6");
+  }
+  else if (results->decode_type == LG) {
+    addJsonString(client, "type", "LG");
+  }
+  else if (results->decode_type == JVC) {
+    addJsonString(client, "type", "JVC");
+  }
+  else if (results->decode_type == AIWA_RC_T501) {
+    addJsonString(client, "type", "AIWA_RC_T501");
+  }
+  else if (results->decode_type == WHYNTER) {
+    addJsonString(client, "type", "WHYNTER");
+  }
+  addJsonULong(client, "value", results->value);
+  addJsonInt(client, "nbbits", results->bits);
+}
+
+void getIRCode(YunClient client) {
+    irrecv.resume(); // Receive the next value
+    for (unsigned int i = 0 ; i < 10 ; i++) {
+      if (irrecv.decode(&results)) {
+        dumpToJson(client, &results);
+        break;
+      }
+      delay(1000);
+    }
 }
 
 void sendIRCommand(YunClient client) {
@@ -87,21 +167,14 @@ void sendIRCommand(YunClient client) {
   {
     hz = client.parseInt();
   }
-  client.print(",\"value\":\"");
-  client.print(value);
-  client.print("\"");
-  client.print(",\"khz\":\"");
-  client.print(hz);
-  client.print("\"");
+  addJsonULong(client, "value", value);
+  addJsonInt(client, "khz", hz);
 
   if (protocol == "SAMSUNG") {
     irsend.sendSAMSUNG(value, nbits);
   }
   else if (protocol == "NEC") {
-    irsend.sendNEC(value, nbits, hz);
-  }
-  else if (protocol == "AC") {
-    irsend.sendAC(value, nbits, hz);
+    irsend.sendNEC(value, nbits);
   }
   else if (protocol == "SONY") {
     irsend.sendSony(value, nbits);
@@ -115,46 +188,40 @@ void sendIRCommand(YunClient client) {
   else if (protocol == "DISH") {
     irsend.sendDISH(value, nbits);
   }
-  //  else if (protocol == "SHARP") {
-  //    irsend.sendNEC(value, nbits);
-  //  }
+  #ifdef IR_PANASONIC
   else if (protocol == "PANASONIC") {
     irsend.sendPanasonic(value, nbits);
   }
+  #endif
+  #ifdef IR_JVC
   else if (protocol == "JVC") {
     irsend.sendJVC(value, nbits, 1);
   }
+  #endif
+  #ifdef IR_WHYNTER
   else if (protocol == "WHYNTER") {
     irsend.sendWhynter(value, nbits);
   }
+  #endif
   else {
-    client.print(",\"error\":\"Unknown protocol\"");
+    addJsonString(client, "error", "Unknown protocol");
   }
 }
 
 void getTemperature(YunClient client) {
   String tempUnit = client.readStringUntil('\r');
-  //int sensorValue = analogRead(analogInPin);
-  //double temp = Thermistor(sensorValue);
-  double temp = dht.readTemperature(tempUnit == "F");
-  double humidity = dht.readHumidity();
 
   // print the results to the serial monitor:
-  client.print(",\"temperature\":\"" );
-  client.print(temp);
-  client.print("\"" );
-  client.print(",\"humidity\":\"" );
-  client.print(humidity);
-  client.print("\"" );
+  float temperature = dht.readTemperature(tempUnit == "F");
+  addJsonFloat(client, "temperature", temperature);
+  float humidity = dht.readHumidity();
+  addJsonFloat(client, "humidity", humidity);
 
 }
 
 void process(YunClient client) {
   String command = client.readStringUntil('/');
-  client.print("{\"command\":\"");
-  client.print(command);
-  client.print("\"" );
-  Serial.println(command);
+  addJsonString(client, "command", command, true);
 
   if (command == "getTemp") {
     getTemperature(client);
@@ -162,11 +229,16 @@ void process(YunClient client) {
   else if (command == "sendIRCommand") {
     sendIRCommand(client);
   }
+#ifdef IR_RAW 
   else if (command == "sendIRRaw") {
     sendIRRaw(client);
   }
+#endif
+  else if (command == "getIRCode") {
+    getIRCode(client);
+  }
   else {
-    client.print(",\"error\":\"Unknown Command\"");
+    addJsonString(client, "error", "Unknown Command");
   }
   client.print("}" );
 }

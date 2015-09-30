@@ -1,4 +1,4 @@
-package marchandivan.babyroommonitoring.util;
+package marchandivan.RoomMonitoring.util;
 
 import android.annotation.TargetApi;
 import android.app.Activity;

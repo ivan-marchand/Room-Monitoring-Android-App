@@ -1,4 +1,4 @@
-package marchandivan.babyroommonitoring;
+package marchandivan.RoomMonitoring;
 
 import android.annotation.TargetApi;
 import android.content.Context;
@@ -11,7 +11,6 @@ import android.os.Bundle;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
-import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.RingtonePreference;
@@ -99,10 +98,10 @@ public class SettingsActivity extends PreferenceActivity {
         // use the older PreferenceActivity APIs.
 
         // Add 'server' preferences.
-        addPreferencesFromResource(R.xml.pref_server);
+        addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_server);
 
         // Add 'alarm' preferences, and a corresponding header.
-        addPreferencesFromResource(R.xml.pref_alarm);
+        addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_alarm);
 
         // Add 'data and sync' preferences, and a corresponding header.
         //addPreferencesFromResource(R.xml.pref_data_sync);
@@ -112,6 +111,7 @@ public class SettingsActivity extends PreferenceActivity {
         // to reflect the new value, per the Android Design guidelines.
         bindPreferenceSummaryToValue(findPreference("server_host"));
         bindPreferenceSummaryToValue(findPreference("server_port"));
+        bindPreferenceSummaryToValue(findPreference("server_user"));
         bindPreferenceSummaryToValue(findPreference("alarm_ringtone"));
         bindPreferenceSummaryToValue(findPreference("alarm_max_value"));
         bindPreferenceSummaryToValue(findPreference("alarm_min_value"));
@@ -154,7 +154,7 @@ public class SettingsActivity extends PreferenceActivity {
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     public void onBuildHeaders(List<Header> target) {
         if (!isSimplePreferences(this)) {
-            loadHeadersFromResource(R.xml.pref_headers, target);
+            loadHeadersFromResource(marchandivan.RoomMonitoring.R.xml.pref_headers, target);
         }
     }
 
@@ -184,7 +184,7 @@ public class SettingsActivity extends PreferenceActivity {
                 // using RingtoneManager.
                 if (TextUtils.isEmpty(stringValue)) {
                     // Empty values correspond to 'silent' (no ringtone).
-                    preference.setSummary(R.string.pref_ringtone_silent);
+                    preference.setSummary(marchandivan.RoomMonitoring.R.string.pref_ringtone_silent);
 
                 } else {
                     Ringtone ringtone = RingtoneManager.getRingtone(
@@ -240,7 +240,7 @@ public class SettingsActivity extends PreferenceActivity {
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
-            addPreferencesFromResource(R.xml.pref_server);
+            addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_server);
 
             // Bind the summaries of EditText/List/Dialog/Ringtone preferences
             // to their values. When their values change, their summaries are
@@ -260,7 +260,7 @@ public class SettingsActivity extends PreferenceActivity {
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
-            addPreferencesFromResource(R.xml.pref_alarm);
+            addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_alarm);
 
             // Bind the summaries of EditText/List/Dialog/Ringtone preferences
             // to their values. When their values change, their summaries are
@@ -279,7 +279,7 @@ public class SettingsActivity extends PreferenceActivity {
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
-            addPreferencesFromResource(R.xml.pref_data_sync);
+            addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_data_sync);
 
             // Bind the summaries of EditText/List/Dialog/Ringtone preferences
             // to their values. When their values change, their summaries are

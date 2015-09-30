@@ -3,15 +3,15 @@
     <!-- These settings headers are only used on tablets. -->
 
     <header
-        android:fragment="marchandivan.babyroommonitoring.SettingsActivity$ServerPreferenceFragment"
+        android:fragment="marchandivan.RoomMonitoring.SettingsActivity$ServerPreferenceFragment"
         android:title="@string/pref_header_server" />
 
     <header
-        android:fragment="marchandivan.babyroommonitoring.SettingsActivity$NotificationPreferenceFragment"
+        android:fragment="marchandivan.RoomMonitoring.SettingsActivity$NotificationPreferenceFragment"
         android:title="@string/pref_header_alarm" />
 
     <header
-        android:fragment="marchandivan.babyroommonitoring.SettingsActivity$DataSyncPreferenceFragment"
+        android:fragment="marchandivan.RoomMonitoring.SettingsActivity$DataSyncPreferenceFragment"
         android:title="@string/pref_header_data_sync" />
 
 </preference-headers>

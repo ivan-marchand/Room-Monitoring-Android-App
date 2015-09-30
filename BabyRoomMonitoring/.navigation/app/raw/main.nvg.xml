@@ -6,7 +6,7 @@
     <statePointEntry>
       <state      
         class = "com.android.tools.idea.editors.navigation.model.ActivityState"      
-        className = "marchandivan.babyroommonitoring.DisplayMessageActivity"/>
+        className = "marchandivan.RoomMonitoring.DisplayMessageActivity"/>
       <point      
         x = "500"      
         y = "1480"/>
@@ -14,7 +14,7 @@
     <statePointEntry>
       <state      
         class = "com.android.tools.idea.editors.navigation.model.MenuState"      
-        className = "marchandivan.babyroommonitoring.MainActivity"/>
+        className = "marchandivan.RoomMonitoring.MainActivity"/>
       <point      
         x = "1720"      
         y = "100"/>
@@ -22,7 +22,7 @@
     <statePointEntry>
       <state      
         class = "com.android.tools.idea.editors.navigation.model.ActivityState"      
-        className = "marchandivan.babyroommonitoring.MainActivity"/>
+        className = "marchandivan.RoomMonitoring.MainActivity"/>
       <point      
         x = "500"      
         y = "100"/>
