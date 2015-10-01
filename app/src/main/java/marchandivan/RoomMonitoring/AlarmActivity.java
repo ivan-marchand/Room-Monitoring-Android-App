@@ -6,6 +6,8 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -252,6 +254,7 @@ public class AlarmActivity extends Activity {
         Uri ringtoneUri = Uri.parse(sharedPreferences.getString("alarm_ringtone", ""));
         if (ringtoneUri != null) {
             mRingtone = RingtoneManager.getRingtone(this, ringtoneUri);
+            mRingtone.setStreamType(AudioManager.STREAM_ALARM);
             Log.d("Alarm", ringtoneUri.toString());
         }
     }

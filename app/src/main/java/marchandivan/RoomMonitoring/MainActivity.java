@@ -1,5 +1,8 @@
 package marchandivan.RoomMonitoring;
 
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
@@ -20,6 +23,7 @@ import java.util.HashMap;
 
 public class MainActivity extends AppCompatActivity {
     private Handler mHandler;
+    private HashMap<String, RoomListFragment> mFragmentMap = new HashMap<String, RoomListFragment>();
 
     // Display refresh rate (in ms)
     private int mDisplayRefreshInterval = 30 * 1000; // Every 30s
@@ -28,25 +32,26 @@ public class MainActivity extends AppCompatActivity {
     private RestClient mRestClient;
 
     private void updateDisplay(HashMap<String, Float> temperatureMap, HashMap<String, Float> humidityMap) {
-        // Salon
-        if (temperatureMap.containsKey("salon")) {
-            TextView salonTemperatureView = (TextView) findViewById(R.id.salon_temperature);
-            salonTemperatureView.setText(String.format("%.1f F", temperatureMap.get("salon")));
+        // Add new room fragment
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+        for (String room : temperatureMap.keySet()) {
+            // New fragment ?
+            if (!mFragmentMap.containsKey(room)) {
+                RoomListFragment fragment = new RoomListFragment();
+                // Pass the name as parameter
+                Bundle args = new Bundle();
+                args.putString("room", room);
+                fragment.setArguments(args);
+                // Add fragment to main activity
+                fragmentTransaction.add(R.id.room_list_table, fragment);
+                // Add fragment to the map of existing fragment
+                mFragmentMap.put(room, fragment);
+            }
+            // Update the view
+            mFragmentMap.get(room).updateView(temperatureMap.get(room), humidityMap.get(room));
         }
-        if (humidityMap.containsKey("salon")) {
-            TextView salonHumidityView = (TextView) findViewById(R.id.salon_humidity);
-            salonHumidityView.setText(String.format("%.1f %%", humidityMap.get("salon")));
-        }
-
-        // Noah
-        if (temperatureMap.containsKey("noah")) {
-            TextView noahTemperatureView = (TextView) findViewById(R.id.noah_temperature);
-            noahTemperatureView.setText(String.format("%.1f F", temperatureMap.get("noah")));
-        }
-        if (humidityMap.containsKey("noah")) {
-            TextView noahHumidityView  = (TextView) findViewById(R.id.noah_humidity);
-            noahHumidityView.setText(String.format("%.1f %%", humidityMap.get("noah")));
-        }
+        fragmentTransaction.commit();
     }
 
     private Runnable mDisplayRefresher = new Runnable() {
@@ -151,13 +156,13 @@ public class MainActivity extends AppCompatActivity {
 
     public void sendIRCommand(View view) {
         switch (view.getId()) {
-            case marchandivan.RoomMonitoring.R.id.salon_IRButton_ONOFF:
+            case marchandivan.RoomMonitoring.R.id.IRButton_ONOFF:
                 new SendIRCommand().execute("ONOFF");
                 break;
-            case marchandivan.RoomMonitoring.R.id.salon_IRButton_TEMPPLUS:
+            case marchandivan.RoomMonitoring.R.id.IRButton_TEMPPLUS:
                 new SendIRCommand().execute("TEMPPLUS");
                 break;
-            case marchandivan.RoomMonitoring.R.id.salon_IRButton_TEMPMINUS:
+            case marchandivan.RoomMonitoring.R.id.IRButton_TEMPMINUS:
                 new SendIRCommand().execute("TEMPMINUS");
                 break;
             default:
