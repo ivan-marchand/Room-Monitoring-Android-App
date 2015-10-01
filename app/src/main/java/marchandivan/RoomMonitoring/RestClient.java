@@ -98,6 +98,7 @@ public class RestClient {
     }
 
     protected JSONObject get(String path) {
+        Log.d("RestClient", "GET " + path);
         JSONObject json = new JSONObject();
         if (!mServerHost.isEmpty() && !mServerPort.isEmpty()) {
             try {
@@ -111,6 +112,7 @@ public class RestClient {
     }
 
     protected JSONArray getArray(String path) {
+        Log.d("RestClient", "GET " + path);
         JSONArray json = new JSONArray();
         if (!mServerHost.isEmpty() && !mServerPort.isEmpty()) {
             try {
