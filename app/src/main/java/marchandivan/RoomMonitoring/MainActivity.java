@@ -8,52 +8,67 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import java.util.HashMap;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import marchandivan.RoomMonitoring.db.RoomConfig;
+import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
 
 public class MainActivity extends AppCompatActivity {
     private Handler mHandler;
-    private HashMap<String, RoomListFragment> mFragmentMap = new HashMap<String, RoomListFragment>();
 
     // Display refresh rate (in ms)
     private int mDisplayRefreshInterval = 30 * 1000; // Every 30s
 
-    private void updateDisplay(HashMap<String, Float> temperatureMap, HashMap<String, Float> humidityMap) {
+    private void updateDisplay() throws JSONException {
         // Add new room fragment
         FragmentManager fragmentManager = getSupportFragmentManager();
         FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-        for (String room : temperatureMap.keySet()) {
-            // New fragment ?
-            if (!mFragmentMap.containsKey(room)) {
-                RoomListFragment fragment = new RoomListFragment();
-                // Pass the name as parameter
-                Bundle args = new Bundle();
-                args.putString("room", room);
-                args.putFloat("temperature", temperatureMap.get(room));
-                args.putFloat("humidity", humidityMap.get(room));
-                fragment.setArguments(args);
-                // Add fragment to main activity
-                fragmentTransaction.add(R.id.room_list_table, fragment);
-                // Add fragment to the map of existing fragment
-                mFragmentMap.put(room, fragment);
+
+        for (RoomConfig roomConfig : MonitorRoomReceiver.GetRoomConfigs().values()) {
+            RoomFragment fragment = new RoomFragment();
+            // Pass the name as parameter
+            Bundle args = new Bundle();
+            args.putString("room", roomConfig.mRoomName);
+            if (MonitorRoomReceiver.GetRooms().containsKey(roomConfig.mRoomName)) {
+                JSONObject room = MonitorRoomReceiver.GetRooms().get(roomConfig.mRoomName);
+                args.putFloat("temperature", Float.parseFloat(room.getString("temperature")));
+                args.putFloat("humidity", Float.parseFloat(room.getString("humidity")));
+            }
+            fragment.setArguments(args);
+            // Add fragment to main activity
+            String aTag = "room_list_fragment_" + roomConfig.mRoomName;
+            if (fragmentManager.findFragmentByTag(aTag) != null) {
+                Log.d("updateDisplay", "Replace fragment for " + roomConfig.mRoomName);
+                fragmentTransaction.replace(R.id.room_list_table, fragment, aTag);
             }
             else {
-                // Update the view
-                mFragmentMap.get(room).updateView(temperatureMap.get(room), humidityMap.get(room));
+                Log.d("updateDisplay", "Add fragment for " + roomConfig.mRoomName);
+                fragmentTransaction.add(R.id.room_list_table, fragment, aTag);
             }
         }
-        fragmentTransaction.commit();
+        // Something to commit?
+        if (!fragmentTransaction.isEmpty()) {
+            fragmentTransaction.commit();
+        }
     }
 
     private Runnable mDisplayRefresher = new Runnable() {
         @Override
         public void run() {
             try {
-                updateDisplay(MonitorRoomReceiver.GetTemperatures(), MonitorRoomReceiver.GetHumidities());
+                if (hasWindowFocus()) {
+                    updateDisplay();
+                }
+            } catch (Exception e) {
+
             } finally {
                 mHandler.removeCallbacks(this);
-                mHandler.postDelayed(this, mDisplayRefreshInterval);
+                mHandler.postDelayed(this, MonitorRoomReceiver.GetRooms().isEmpty() ? 1000 : mDisplayRefreshInterval);
             }
         }
     };
@@ -68,12 +83,14 @@ public class MainActivity extends AppCompatActivity {
         // Init the callback handler
         mHandler = new Handler();
 
+        // Get current room temp
+        MonitorRoomReceiver.Update(this);
+
         // Activate the room monitoring
         MonitorRoomReceiver.Activate(this);
 
         // Run the display refresher
         mDisplayRefresher.run();
-
     }
 
     @Override
@@ -94,7 +111,6 @@ public class MainActivity extends AppCompatActivity {
         getMenuInflater().inflate(marchandivan.RoomMonitoring.R.menu.menu_main, menu);
         return true;
     }
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
@@ -103,8 +119,11 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == marchandivan.RoomMonitoring.R.id.action_settings) {
+        if (id == R.id.action_settings) {
             openSettings();
+            return true;
+        } else if (id == R.id.action_add_room) {
+            manageRooms();
             return true;
         }
 
@@ -116,4 +135,7 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
+    public void manageRooms() {
+
+    }
 }

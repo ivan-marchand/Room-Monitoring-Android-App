@@ -1,4 +1,4 @@
-package marchandivan.RoomMonitoring;
+package marchandivan.RoomMonitoring.http;
 
 /**
  * Created by imarchand on 6/28/2015.
@@ -97,7 +97,7 @@ public class RestClient {
         return result;
     }
 
-    protected JSONObject get(String path) {
+    public JSONObject get(String path) {
         Log.d("RestClient", "GET " + path);
         JSONObject json = new JSONObject();
         if (!mServerHost.isEmpty() && !mServerPort.isEmpty()) {
@@ -111,7 +111,7 @@ public class RestClient {
         return json;
     }
 
-    protected JSONArray getArray(String path) {
+    public JSONArray getArray(String path) {
         Log.d("RestClient", "GET " + path);
         JSONArray json = new JSONArray();
         if (!mServerHost.isEmpty() && !mServerPort.isEmpty()) {

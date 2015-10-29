@@ -15,17 +15,19 @@ import android.widget.Toast;
 
 import org.json.JSONObject;
 
+import marchandivan.RoomMonitoring.http.RestClient;
+
 /**
  * A placeholder fragment containing a simple view.
  */
-public class RoomListFragment extends Fragment implements View.OnClickListener {
+public class RoomFragment extends Fragment implements View.OnClickListener {
     private String mRoom;
     private View mView;
 
     // REST client, used for IR commands
     private RestClient mRestClient;
 
-    public RoomListFragment() {
+    public RoomFragment() {
     }
 
     @Override
@@ -42,7 +44,8 @@ public class RoomListFragment extends Fragment implements View.OnClickListener {
         roomName.setText(new String(roomCapitalized));
 
         // Update temperature and humidity
-        updateView(args.getFloat("temperature"), args.getFloat("humidity"));
+        updateView(args.containsKey("temperature") ? args.getFloat("temperature") : null,
+                   args.containsKey("humidity") ? args.getFloat("humidity") : null);
 
         // Setup click listener
         Button tempPlus = (Button) mView.findViewById(R.id.IRButton_TEMPPLUS);
@@ -105,12 +108,16 @@ public class RoomListFragment extends Fragment implements View.OnClickListener {
 
     public void updateView(Float temperature, Float humidity) {
         if (mView != null) {
-            // Temperature
-            TextView temperatureView = (TextView)mView.findViewById(R.id.temperature);
-            temperatureView.setText(String.format("%.1f F", temperature));
-            // Humidity
-            TextView humidityView = (TextView)mView.findViewById(R.id.humidity);
-            humidityView.setText(String.format("%.1f F", humidity));
+            if (temperature != null) {
+                // Temperature
+                TextView temperatureView = (TextView)mView.findViewById(R.id.temperature);
+                temperatureView.setText(String.format("%.1f F", temperature));
+            }
+            if (humidity != null) {
+                // Humidity
+                TextView humidityView = (TextView)mView.findViewById(R.id.humidity);
+                humidityView.setText(String.format("%.1f %%", humidity));
+            }
         }
     }
 }

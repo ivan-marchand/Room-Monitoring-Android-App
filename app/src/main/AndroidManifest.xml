@@ -3,6 +3,7 @@
     package="marchandivan.RoomMonitoring" >
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="true"
@@ -38,9 +39,16 @@
         </activity>
 
         <receiver
-            android:name=".MonitorRoomReceiver"
+            android:name=".receiver.MonitorRoomReceiver"
             android:enabled="true"
             android:exported="true" >
+        </receiver>
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:enabled="false" >
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
         </receiver>
     </application>
 
