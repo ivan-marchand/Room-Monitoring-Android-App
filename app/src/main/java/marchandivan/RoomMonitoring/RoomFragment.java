@@ -1,21 +1,18 @@
 package marchandivan.RoomMonitoring;
 
-import android.content.SharedPreferences;
-import android.os.AsyncTask;
-import android.preference.PreferenceManager;
+import android.content.Intent;
 import android.support.v4.app.Fragment;
 import android.os.Bundle;
-import android.util.Log;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import org.json.JSONObject;
-
-import marchandivan.RoomMonitoring.http.RestClient;
+import marchandivan.RoomMonitoring.db.RoomConfig;
 
 /**
  * A placeholder fragment containing a simple view.
@@ -23,9 +20,6 @@ import marchandivan.RoomMonitoring.http.RestClient;
 public class RoomFragment extends Fragment implements View.OnClickListener {
     private String mRoom;
     private View mView;
-
-    // REST client, used for IR commands
-    private RestClient mRestClient;
 
     public RoomFragment() {
     }
@@ -47,59 +41,38 @@ public class RoomFragment extends Fragment implements View.OnClickListener {
         updateView(args.containsKey("temperature") ? args.getFloat("temperature") : null,
                    args.containsKey("humidity") ? args.getFloat("humidity") : null);
 
-        // Setup click listener
-        Button tempPlus = (Button) mView.findViewById(R.id.IRButton_TEMPPLUS);
-        tempPlus.setOnClickListener(this);
-        Button tempMinus = (Button) mView.findViewById(R.id.IRButton_TEMPMINUS);
-        tempMinus.setOnClickListener(this);
-        Button onOff = (Button) mView.findViewById(R.id.IRButton_ONOFF);
-        onOff.setOnClickListener(this);
+        // Remove room button
+        ImageButton removeRoomButton = (ImageButton) mView.findViewById(R.id.remove_room);
+        removeRoomButton.setOnClickListener(this);
 
-        // Configure the REST client
-        mRestClient = new RestClient(getActivity().getAssets());
-        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getActivity());
-        mRestClient.configure(sharedPref);
-
+        // Show room details button
+        Button roomDetailsButton = (Button) mView.findViewById(R.id.room_details_button);
+        roomDetailsButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Show room details
+                Intent roomDetailsIntent = new Intent(v.getContext(), RoomDetailsActivity.class);
+                Bundle args = new Bundle();
+                args.putString("room", mRoom);
+                roomDetailsIntent.putExtras(args);
+                v.getContext().startActivity(roomDetailsIntent);
+            }
+        });
 
         return mView;
-    }
-
-    protected class SendIRCommand extends AsyncTask<String, Void, JSONObject> {
-
-        protected JSONObject doInBackground(String... strings) {
-            return mRestClient.get("/api/v1/sendIRCommand/"+ mRoom + "/" + strings[0]);
-        }
-
-        protected void onPostExecute(JSONObject result) {
-            try {
-                Log.d("RestClient", result.toString());
-                if (result.has("result") && result.getString("result").equals("Success")) {
-                    Toast.makeText(getActivity(), "IR Command successfully sent!", Toast.LENGTH_SHORT).show();
-                } else {
-                    String errorMessage = "Failed to send IR Command";
-                    if (result.has("error")) {
-                        errorMessage += ", " + result.getString("error");
-                    }
-                    Toast.makeText(getActivity(), errorMessage, Toast.LENGTH_SHORT).show();
-                }
-            }
-            catch (Exception e) {
-                Log.d("SendIRCommand", "Error " + e.toString());
-            }
-        }
     }
 
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.IRButton_ONOFF:
-                new SendIRCommand().execute("ONOFF");
-                break;
-            case R.id.IRButton_TEMPPLUS:
-                new SendIRCommand().execute("TEMPPLUS");
-                break;
-            case R.id.IRButton_TEMPMINUS:
-                new SendIRCommand().execute("TEMPMINUS");
+            case R.id.remove_room:
+                RoomConfig roomConfig = new RoomConfig(v.getContext(), mRoom);
+                roomConfig.delete();
+                // Remove fragment
+                FragmentManager fragmentManager = this.getActivity().getSupportFragmentManager();
+                FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+                fragmentTransaction.remove(this);
+                fragmentTransaction.commit();
                 break;
             default:
                 break;

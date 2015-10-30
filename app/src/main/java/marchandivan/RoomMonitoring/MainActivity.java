@@ -1,5 +1,7 @@
 package marchandivan.RoomMonitoring;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.content.Intent;
@@ -9,11 +11,19 @@ import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
+import android.widget.Toast;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import marchandivan.RoomMonitoring.db.RoomConfig;
 import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
@@ -24,36 +34,41 @@ public class MainActivity extends AppCompatActivity {
     // Display refresh rate (in ms)
     private int mDisplayRefreshInterval = 30 * 1000; // Every 30s
 
-    private void updateDisplay() throws JSONException {
-        // Add new room fragment
-        FragmentManager fragmentManager = getSupportFragmentManager();
-        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+    private void updateDisplay() {
+        try {
+            // Add new room fragment
+            FragmentManager fragmentManager = getSupportFragmentManager();
+            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
 
-        for (RoomConfig roomConfig : MonitorRoomReceiver.GetRoomConfigs().values()) {
-            RoomFragment fragment = new RoomFragment();
-            // Pass the name as parameter
-            Bundle args = new Bundle();
-            args.putString("room", roomConfig.mRoomName);
-            if (MonitorRoomReceiver.GetRooms().containsKey(roomConfig.mRoomName)) {
-                JSONObject room = MonitorRoomReceiver.GetRooms().get(roomConfig.mRoomName);
-                args.putFloat("temperature", Float.parseFloat(room.getString("temperature")));
-                args.putFloat("humidity", Float.parseFloat(room.getString("humidity")));
+            for (RoomConfig roomConfig : RoomConfig.GetMap(this).values()) {
+                RoomFragment fragment = new RoomFragment();
+                // Pass the name as parameter
+                Bundle args = new Bundle();
+                args.putString("room", roomConfig.mRoomName);
+                if (MonitorRoomReceiver.GetRooms().containsKey(roomConfig.mRoomName)) {
+                    JSONObject room = MonitorRoomReceiver.GetRooms().get(roomConfig.mRoomName);
+                    args.putFloat("temperature", Float.parseFloat(room.getString("temperature")));
+                    args.putFloat("humidity", Float.parseFloat(room.getString("humidity")));
+                }
+                fragment.setArguments(args);
+                // Add fragment to main activity
+                String aTag = "room_list_fragment_" + roomConfig.mRoomName;
+                if (fragmentManager.findFragmentByTag(aTag) != null) {
+                    Log.d("updateDisplay", "Replace fragment for " + roomConfig.mRoomName);
+                    fragmentTransaction.replace(R.id.room_list_table, fragment, aTag);
+                }
+                else {
+                    Log.d("updateDisplay", "Add fragment for " + roomConfig.mRoomName);
+                    fragmentTransaction.add(R.id.room_list_table, fragment, aTag);
+                }
             }
-            fragment.setArguments(args);
-            // Add fragment to main activity
-            String aTag = "room_list_fragment_" + roomConfig.mRoomName;
-            if (fragmentManager.findFragmentByTag(aTag) != null) {
-                Log.d("updateDisplay", "Replace fragment for " + roomConfig.mRoomName);
-                fragmentTransaction.replace(R.id.room_list_table, fragment, aTag);
-            }
-            else {
-                Log.d("updateDisplay", "Add fragment for " + roomConfig.mRoomName);
-                fragmentTransaction.add(R.id.room_list_table, fragment, aTag);
+            // Something to commit?
+            if (!fragmentTransaction.isEmpty()) {
+                fragmentTransaction.commit();
             }
         }
-        // Something to commit?
-        if (!fragmentTransaction.isEmpty()) {
-            fragmentTransaction.commit();
+        catch (Exception e) {
+
         }
     }
 
@@ -90,6 +105,7 @@ public class MainActivity extends AppCompatActivity {
         MonitorRoomReceiver.Activate(this);
 
         // Run the display refresher
+        updateDisplay();
         mDisplayRefresher.run();
     }
 
@@ -122,12 +138,58 @@ public class MainActivity extends AppCompatActivity {
         if (id == R.id.action_settings) {
             openSettings();
             return true;
-        } else if (id == R.id.action_add_room) {
-            manageRooms();
-            return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    public void addRoom(View view) {
+        // Get the list of room that can be added
+        List<String> rooms = new ArrayList<String>();
+        for(String room: MonitorRoomReceiver.GetRooms().keySet()) {
+            Log.d("addRoom", room);
+            if(!RoomConfig.GetMap(view.getContext()).containsKey(room)) {
+                rooms.add(room);
+            }
+        }
+        Log.d("addRoom", rooms.toString());
+
+        if (!rooms.isEmpty()) {
+            // Build the dialog
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Select a room");
+            // Inflate layout
+            LayoutInflater inflater = this.getLayoutInflater();
+            final View dialogView = inflater.inflate(R.layout.add_room_dialog, null);
+            final Spinner spinner = (Spinner)dialogView.findViewById(R.id.room_spinner);
+            ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(this, R.layout.spinner_layout, rooms);
+            dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinner.setAdapter(dataAdapter);
+            builder.setView(dialogView);
+            // Add confirm/cancel buttons
+            builder.setPositiveButton("Add Room", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    RoomConfig roomConfig = new RoomConfig(dialogView.getContext(), spinner.getSelectedItem().toString());
+                    roomConfig.add();
+                    updateDisplay();
+                }
+            });
+            // Add confirm/cancel buttons
+            builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+
+                }
+            });
+
+            // Show the dialog
+            AlertDialog dialog = builder.create();
+            dialog.show();
+        }
+        else {
+            Toast.makeText(this, "No room available", Toast.LENGTH_SHORT).show();
+        }
     }
 
     public void openSettings() {
@@ -135,7 +197,4 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    public void manageRooms() {
-
-    }
 }

@@ -44,18 +44,6 @@ public class SettingsActivity extends PreferenceActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setupActionBar();
-    }
-
-    /**
-     * Set up the {@link android.app.ActionBar}, if the API is available.
-     */
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    private void setupActionBar() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
-            // Show the Up button in the action bar.
-            //getActionBar().setDisplayHomeAsUpEnabled(true);
-        }
     }
 
     @Override
@@ -103,18 +91,6 @@ public class SettingsActivity extends PreferenceActivity {
         // Add 'alarm' preferences, and a corresponding header.
         addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_alarm);
 
-        // Add 'data and sync' preferences, and a corresponding header.
-        //addPreferencesFromResource(R.xml.pref_data_sync);
-
-        // Bind the summaries of EditText/List/Dialog/Ringtone preferences to
-        // their values. When their values change, their summaries are updated
-        // to reflect the new value, per the Android Design guidelines.
-        bindPreferenceSummaryToValue(findPreference("server_host"));
-        bindPreferenceSummaryToValue(findPreference("server_port"));
-        bindPreferenceSummaryToValue(findPreference("server_user"));
-        bindPreferenceSummaryToValue(findPreference("alarm_ringtone"));
-        bindPreferenceSummaryToValue(findPreference("alarm_max_value"));
-        bindPreferenceSummaryToValue(findPreference("alarm_min_value"));
     }
 
     /**
@@ -246,8 +222,9 @@ public class SettingsActivity extends PreferenceActivity {
             // to their values. When their values change, their summaries are
             // updated to reflect the new value, per the Android Design
             // guidelines.
-            bindPreferenceSummaryToValue(findPreference("example_text"));
-            bindPreferenceSummaryToValue(findPreference("example_list"));
+            bindPreferenceSummaryToValue(findPreference("server_host"));
+            bindPreferenceSummaryToValue(findPreference("server_port"));
+            bindPreferenceSummaryToValue(findPreference("server_user"));
         }
     }
 
@@ -266,26 +243,10 @@ public class SettingsActivity extends PreferenceActivity {
             // to their values. When their values change, their summaries are
             // updated to reflect the new value, per the Android Design
             // guidelines.
-            bindPreferenceSummaryToValue(findPreference("notifications_new_message_ringtone"));
+            bindPreferenceSummaryToValue(findPreference("alarm_ringtone"));
+            bindPreferenceSummaryToValue(findPreference("alarm_max_value"));
+            bindPreferenceSummaryToValue(findPreference("alarm_min_value"));
         }
     }
 
-    /**
-     * This fragment shows data and sync preferences only. It is used when the
-     * activity is showing a two-pane settings UI.
-     */
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public static class DataSyncPreferenceFragment extends PreferenceFragment {
-        @Override
-        public void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_data_sync);
-
-            // Bind the summaries of EditText/List/Dialog/Ringtone preferences
-            // to their values. When their values change, their summaries are
-            // updated to reflect the new value, per the Android Design
-            // guidelines.
-            bindPreferenceSummaryToValue(findPreference("sync_frequency"));
-        }
-    }
 }

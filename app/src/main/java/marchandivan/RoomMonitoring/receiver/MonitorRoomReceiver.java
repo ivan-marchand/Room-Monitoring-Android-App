@@ -13,6 +13,7 @@ import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
+import org.apache.http.HttpStatus;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -44,9 +45,6 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
 
     // Map containing the last Temperature/Humidity values retrieved from server
     static HashMap<String, JSONObject> mRoomMap = new HashMap<String, JSONObject>();
-
-    // Map containing room configuration
-    static HashMap<String, RoomConfig> mRoomConfigMap = new HashMap<String, RoomConfig>();
 
     // Rest client instance, used to access remote server
     private RestClient mRestClient;
@@ -110,15 +108,14 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
         protected void onPostExecute(JSONArray result) {
             try {
                 long lastUpdate = SystemClock.elapsedRealtime();
-                for (RoomConfig roomConfig: mRoomConfigMap.values()) {
-                    for (int i = 0 ; i < result.length() ; i++) {
-                        JSONObject room = result.getJSONObject(i);
-                        if (room.getString("room").equals(roomConfig.mRoomName)) {
-                            Log.d("UpdateRoom", roomConfig.mRoomName);
-                            roomConfig.update(lastUpdate);
-                            mRoomMap.put(room.getString("room"), room);
-                            break;
-                        }
+                for (int i = 0 ; i < result.length() ; i++) {
+                    JSONObject room = result.getJSONObject(i);
+                    String roomName = room.getString("room");
+                    mRoomMap.put(roomName, room);
+                    HashMap<String, RoomConfig> roomConfigs = RoomConfig.GetMap(mContext);
+                    if (roomConfigs.containsKey(roomName)) {
+                        Log.d("UpdateRoom", roomName);
+                        roomConfigs.get(roomName).update(lastUpdate);
                     }
                 }
             } catch (Exception e) {
@@ -129,10 +126,6 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
 
     static public HashMap<String, JSONObject> GetRooms() {
         return mRoomMap;
-    }
-
-    static public HashMap<String, RoomConfig> GetRoomConfigs() {
-        return mRoomConfigMap;
     }
 
     public void update(Context context) {
@@ -181,9 +174,6 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
             mMinTempThreshold = Integer.parseInt(sharedPreferences.getString("alarm_min_value", null));
             Log.d("MonitorRoom", "MaxTemp : " + mMaxTempThreshold.toString() + " MinTemp : " + mMinTempThreshold.toString());
         }
-
-        // Update configuration map
-        mRoomConfigMap = RoomConfig.GetMap(context);
 
     }
 

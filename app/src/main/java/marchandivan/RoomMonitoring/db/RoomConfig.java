@@ -100,6 +100,7 @@ public class RoomConfig {
     }
 
     public void delete() {
+        Log.d("RoomConfig:delete", "Room " + mRoomName);
         // Gets the data repository in write mode
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         // Define 'where' part of query.
