@@ -27,20 +27,5 @@
             android:title="@string/pref_title_vibrate"
             android:defaultValue="true" />
 
-        <EditTextPreference
-            android:dependency="temperature_alarm"
-            android:key="alarm_max_value"
-            android:title="@string/pref_title_max_value"
-            android:defaultValue="75"
-            android:inputType="numberSigned" />
-
-        <EditTextPreference
-            android:dependency="temperature_alarm"
-            android:key="alarm_min_value"
-            android:title="@string/pref_title_min_value"
-            android:defaultValue="70"
-            android:inputType="numberSigned" />
-
-
     </PreferenceCategory>
 </PreferenceScreen>

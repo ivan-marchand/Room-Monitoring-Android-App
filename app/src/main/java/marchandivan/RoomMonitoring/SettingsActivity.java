@@ -87,9 +87,13 @@ public class SettingsActivity extends PreferenceActivity {
 
         // Add 'server' preferences.
         addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_server);
+        bindPreferenceSummaryToValue(findPreference("server_host"));
+        bindPreferenceSummaryToValue(findPreference("server_port"));
+        bindPreferenceSummaryToValue(findPreference("server_user"));
 
         // Add 'alarm' preferences, and a corresponding header.
         addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_alarm);
+        bindPreferenceSummaryToValue(findPreference("alarm_ringtone"));
 
     }
 
@@ -222,9 +226,6 @@ public class SettingsActivity extends PreferenceActivity {
             // to their values. When their values change, their summaries are
             // updated to reflect the new value, per the Android Design
             // guidelines.
-            bindPreferenceSummaryToValue(findPreference("server_host"));
-            bindPreferenceSummaryToValue(findPreference("server_port"));
-            bindPreferenceSummaryToValue(findPreference("server_user"));
         }
     }
 
@@ -243,9 +244,6 @@ public class SettingsActivity extends PreferenceActivity {
             // to their values. When their values change, their summaries are
             // updated to reflect the new value, per the Android Design
             // guidelines.
-            bindPreferenceSummaryToValue(findPreference("alarm_ringtone"));
-            bindPreferenceSummaryToValue(findPreference("alarm_max_value"));
-            bindPreferenceSummaryToValue(findPreference("alarm_min_value"));
         }
     }
 

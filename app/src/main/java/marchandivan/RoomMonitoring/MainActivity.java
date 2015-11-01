@@ -17,9 +17,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
-import android.widget.Toast;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -110,6 +108,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+
+        // Get current room temp
+        MonitorRoomReceiver.Update(this);
+
+        // Update the display
+        updateDisplay();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
 
@@ -171,24 +180,26 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     RoomConfig roomConfig = new RoomConfig(dialogView.getContext(), spinner.getSelectedItem().toString());
-                    roomConfig.add();
+                    roomConfig.update();
                     updateDisplay();
                 }
             });
             // Add confirm/cancel buttons
-            builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-
-                }
-            });
+            builder.setNegativeButton("Cancel", null);
 
             // Show the dialog
             AlertDialog dialog = builder.create();
             dialog.show();
         }
         else {
-            Toast.makeText(this, "No room available", Toast.LENGTH_SHORT).show();
+            // Build the dialog
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("No room available");
+            builder.setPositiveButton("Ok", null);
+
+            // Show the dialog
+            AlertDialog dialog = builder.create();
+            dialog.show();
         }
     }
 

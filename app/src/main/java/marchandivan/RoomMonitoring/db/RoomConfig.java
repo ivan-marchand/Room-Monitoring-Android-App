@@ -14,17 +14,15 @@ import java.util.HashMap;
  */
 public class RoomConfig {
     private long mId = 0;
-    private RoomConfigDbHelper mDbHelper;
+    private ConfigDbHelper mDbHelper;
     public String mRoomName;
     public long mLastUpdate = 0;
     public Boolean mAlarmActive = false;
-    public Integer mMaxTemp = 0;
-    public Integer mMinTemp = 0;
     public long mLastAlarm = 0;
 
     static public HashMap<String, RoomConfig> GetMap(Context context) {
         HashMap<String, RoomConfig> roomConfigs = new HashMap<String, RoomConfig>();
-        RoomConfigDbHelper dbHelper = new RoomConfigDbHelper(context);
+        ConfigDbHelper dbHelper = new ConfigDbHelper(context);
         SQLiteDatabase db = dbHelper.getReadableDatabase();
 
         String[] projection = {
@@ -65,18 +63,16 @@ public class RoomConfig {
 
     public RoomConfig(Context context, String roomName) {
         mRoomName = roomName;
-        mDbHelper = new RoomConfigDbHelper(context);
+        mDbHelper = new ConfigDbHelper(context);
     }
 
-    public void add() {
+    public void update() {
         // Delete existing entry if any
         delete();
 
         Log.d("RoomConfig:add", "Id " + String.valueOf(mId));
         Log.d("RoomConfig:add", "Last update " + String.valueOf(mLastUpdate));
         Log.d("RoomConfig:add", "Alarm active " + String.valueOf(mAlarmActive));
-        Log.d("RoomConfig:add", "Max Temp " + String.valueOf(mMaxTemp));
-        Log.d("RoomConfig:add", "Min Temp " + String.valueOf(mMinTemp));
         Log.d("RoomConfig:add", "Last alarm " + String.valueOf(mLastAlarm));
 
         // Gets the data repository in write mode
@@ -87,8 +83,6 @@ public class RoomConfig {
         values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM, mRoomName);
         values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE, mLastUpdate);
         values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_ALARM_ACTIVE, mAlarmActive ? 1:0);
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_MAX_TEMP, mMaxTemp);
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_MIN_TEMP, mMinTemp);
         values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM, mLastAlarm);
 
         // Insert the new row, returning the primary key value of the new row
@@ -119,8 +113,6 @@ public class RoomConfig {
                 RoomConfigContract.RoomEntry._ID,
                 RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE,
                 RoomConfigContract.RoomEntry.COLUMN_NAME_ALARM_ACTIVE,
-                RoomConfigContract.RoomEntry.COLUMN_NAME_MAX_TEMP,
-                RoomConfigContract.RoomEntry.COLUMN_NAME_MIN_TEMP,
                 RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM
         };
 
@@ -146,15 +138,11 @@ public class RoomConfig {
         mId = cursor.getLong(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry._ID));
         mLastUpdate = cursor.getLong(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE));
         mAlarmActive = cursor.getInt(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_ALARM_ACTIVE)) == 1 ? true:false;
-        mMaxTemp = cursor.getInt(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_MAX_TEMP));
-        mMinTemp = cursor.getInt(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_MIN_TEMP));
         mLastAlarm = cursor.getLong(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM));
 
         Log.d("RoomConfig:read", "Id " + String.valueOf(mId));
         Log.d("RoomConfig:read", "Last update " + String.valueOf(mLastUpdate));
         Log.d("RoomConfig:read", "Alarm active " + String.valueOf(mAlarmActive));
-        Log.d("RoomConfig:read", "Max Temp " + String.valueOf(mMaxTemp));
-        Log.d("RoomConfig:read", "Min Temp " + String.valueOf(mMinTemp));
         Log.d("RoomConfig:read", "Last alarm " + String.valueOf(mLastAlarm));
 
         db.close();

@@ -13,15 +13,15 @@ import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
-import org.apache.http.HttpStatus;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.sql.Time;
 import java.util.HashMap;
-import java.util.Map;
 
 import marchandivan.RoomMonitoring.AlarmActivity;
+import marchandivan.RoomMonitoring.db.AlarmConfig;
 import marchandivan.RoomMonitoring.db.RoomConfig;
 import marchandivan.RoomMonitoring.http.RestClient;
 
@@ -33,15 +33,8 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
     // Quiet period during which the alarm won't be fired after an alert
     static final long mQuietPeriod = 30 * 60 * 1000; // 30 minutes
 
-    // Timestamp of the last alarm fired
-    private static long mLastAlarmTimeStamp = 0;
-
     // true if alarm in activated
     private boolean mAlarmActivated = false;
-
-    // Max and Min temperature threshold
-    private Integer mMaxTempThreshold = null;
-    private Integer mMinTempThreshold = null;
 
     // Map containing the last Temperature/Humidity values retrieved from server
     static HashMap<String, JSONObject> mRoomMap = new HashMap<String, JSONObject>();
@@ -146,15 +139,15 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
             new Update(context).execute();
 
             // Check min/max temp
-            boolean inQuietPeriod = mLastAlarmTimeStamp + mQuietPeriod > SystemClock.elapsedRealtime();
-            if (!inQuietPeriod) {
-                Float noahTemperature = mRoomMap.containsKey("noah") ? Float.parseFloat(mRoomMap.get("noah").getString("temperature")) : null;
-                if (mAlarmActivated && noahTemperature != null && (mMaxTempThreshold != null && noahTemperature > mMaxTempThreshold || mMinTempThreshold != null && noahTemperature < mMinTempThreshold)) {
-                    mLastAlarmTimeStamp = SystemClock.elapsedRealtime();
-                    Log.d("MonitorRoom", "Firing alarm!");
-                    Intent alarmIntent = new Intent(context, AlarmActivity.class);
-                    alarmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(alarmIntent);
+            HashMap<String, RoomConfig> roomConfigs = RoomConfig.GetMap(context);
+            for (RoomConfig roomConfig : roomConfigs.values()) {
+                AlarmConfig alarmConfig = new AlarmConfig(context, roomConfig.mRoomName);
+                if (mAlarmActivated && roomConfig.mAlarmActive && !inQuietPeriod(roomConfig) && exceedThreshold(alarmConfig)) {
+                        roomConfig.updateAlarm();
+                        Log.d("MonitorRoom", "Firing alarm!");
+                        Intent alarmIntent = new Intent(context, AlarmActivity.class);
+                        alarmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        context.startActivity(alarmIntent);
                 }
             }
         } catch (Exception e) {
@@ -162,18 +155,39 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
         }
     }
 
+    private boolean inQuietPeriod(RoomConfig roomConfig) {
+        return roomConfig.mLastAlarm + mQuietPeriod > SystemClock.elapsedRealtime();
+    }
+
+    private boolean exceedThreshold(AlarmConfig alarmConfig) throws JSONException {
+        Time now = new Time(SystemClock.elapsedRealtime());
+        Integer nowMinutes = now.getHours() * 60 + now.getMinutes();
+        Float temperature = mRoomMap.containsKey(alarmConfig.mRoomName) ? Float.parseFloat(mRoomMap.get(alarmConfig.mRoomName).getString("temperature")) : null;
+        for (AlarmConfig.Alarm alarm : alarmConfig.read()) {
+            if (isAlarmEnable(alarm, nowMinutes) && temperature != null && temperature > alarm.mMaxTemp || temperature < alarm.mMaxTemp) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean isAlarmEnable(AlarmConfig.Alarm alarm, Integer nowMinutes) {
+        Integer startMinutes = alarm.mStartTime.first * 60 + alarm.mStartTime.second;
+        Integer stopMinutes = alarm.mStopTime.first * 60 + alarm.mStopTime.second;
+        if (stopMinutes > startMinutes) {
+            return nowMinutes >= startMinutes && nowMinutes <= stopMinutes;
+        } else if (startMinutes > stopMinutes) {
+            return nowMinutes >= startMinutes || nowMinutes <= stopMinutes;
+        }
+        // startMinutes == stopMinutes
+        return true;
+    }
     public void configure(Context context) {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         mRestClient = new RestClient(context.getAssets());
         mRestClient.configure(sharedPreferences);
 
         mAlarmActivated = sharedPreferences.getBoolean("temperature_alarm", false);
-        if (mAlarmActivated) {
-            // Get min and max temp
-            mMaxTempThreshold = Integer.parseInt(sharedPreferences.getString("alarm_max_value", null));
-            mMinTempThreshold = Integer.parseInt(sharedPreferences.getString("alarm_min_value", null));
-            Log.d("MonitorRoom", "MaxTemp : " + mMaxTempThreshold.toString() + " MinTemp : " + mMinTempThreshold.toString());
-        }
 
     }
 

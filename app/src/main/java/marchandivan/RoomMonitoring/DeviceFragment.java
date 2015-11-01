@@ -97,7 +97,9 @@ public class DeviceFragment extends Fragment implements View.OnClickListener {
                 deviceIcon.setImageResource(R.drawable.ac);
             }
             TextView deviceName = (TextView)view.findViewById(R.id.device_name);
-            deviceName.setText(mName);
+            char[] deviceCapitalized = mName.toCharArray();
+            deviceCapitalized[0] = Character.toUpperCase(deviceCapitalized[0]);
+            deviceName.setText(new String(deviceCapitalized));
 
             // Add commands
             LinearLayout buttonContainer = (LinearLayout)view.findViewById(R.id.commands);
