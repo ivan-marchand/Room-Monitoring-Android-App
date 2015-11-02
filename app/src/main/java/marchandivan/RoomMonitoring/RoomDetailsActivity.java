@@ -11,6 +11,7 @@ import android.util.Log;
 import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -84,16 +85,30 @@ public class RoomDetailsActivity extends AppCompatActivity {
             if (roomConfig.read()) {
                 AlarmConfig alarmConfig = new AlarmConfig(this, mRoom);
                 ArrayList<AlarmConfig.Alarm> alarms = alarmConfig.read();
-                LinearLayout checkBoxContainer = (LinearLayout)this.findViewById(R.id.alarm_display);
-                checkBoxContainer.removeAllViews();
+                LinearLayout alarmDisplayContainer = (LinearLayout)this.findViewById(R.id.alarm_display);
+                alarmDisplayContainer.removeAllViews();
                 for (AlarmConfig.Alarm alarm : alarms) {
-                    Switch alarmSettings = new Switch(this);
-                    alarmSettings.setEnabled(false);
-                    alarmSettings.setTextSize(20);
+                    // Display temp range
+                    TextView alarmTempRange = new TextView(this);
+                    alarmTempRange.setTextSize(20);
+                    alarmTempRange.setText(String.format("Min - Max (F) : %d - %d", alarm.mMinTemp, alarm.mMaxTemp));
 
-                    alarmSettings.setChecked(roomConfig.mAlarmActive);
-                    alarmSettings.setText(String.format("Min - Max (F) : %d - %d", alarm.mMinTemp, alarm.mMaxTemp));
-                    checkBoxContainer.addView(alarmSettings);
+                    // Display alarm on/off icon
+                    ImageView alarmIcon = new ImageView(this);
+                    alarmIcon.setImageResource(roomConfig.mAlarmActive ? R.drawable.alarm : R.drawable.alarm_off);
+
+                    // Add views to container
+                    alarmDisplayContainer.addView(alarmIcon);
+                    alarmDisplayContainer.addView(alarmTempRange);
+
+                    // Display time range
+                    if (!alarm.isActiveAnyTime()) {
+                        TextView alarmTimeRange = new TextView(this);
+                        alarmTimeRange.setTextSize(20);
+                        alarmTimeRange.setText(String.format("From %02d:%02d to %02d:%02d",
+                                alarm.mStartTime.first, alarm.mStartTime.second, alarm.mStopTime.first, alarm.mStopTime.second));
+                        alarmDisplayContainer.addView(alarmTimeRange);
+                    }
                 }
 
             }
@@ -189,6 +204,20 @@ public class RoomDetailsActivity extends AppCompatActivity {
             TextView maxTemp = (TextView)dialogView.findViewById(R.id.alarm_max_temp);
             maxTemp.setText(String.valueOf(alarm.mMaxTemp));
 
+            // Active any time?
+            Switch activeAnytimeSwitch = (Switch)dialogView.findViewById(R.id.alarm_active_anytime);
+            Boolean activeAnyTime = alarm.isActiveAnyTime();
+            activeAnytimeSwitch.setChecked(activeAnyTime);
+            final LinearLayout timeSettings = (LinearLayout)dialogView.findViewById(R.id.alarm_time_settings);
+            timeSettings.setVisibility(activeAnyTime ? View.GONE: View.VISIBLE);
+            activeAnytimeSwitch.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Switch activeAnytimeSwitch = (Switch)v;
+                    timeSettings.setVisibility(activeAnytimeSwitch.isChecked() ? View.GONE : View.VISIBLE);
+                }
+            });
+
             // Start/Stop time
             startTime.setCurrentHour(alarm.mStartTime.first);
             startTime.setCurrentMinute(alarm.mStartTime.second);
@@ -237,11 +266,22 @@ public class RoomDetailsActivity extends AppCompatActivity {
                     return;
                 }
 
-                // Start/Stop time
-                TimePicker startTime = (TimePicker) dialogView.findViewById(R.id.alarm_start_time);
-                alarm.mStartTime = new Pair<Integer, Integer>(startTime.getCurrentHour(), startTime.getCurrentMinute());
-                TimePicker stopTime = (TimePicker) dialogView.findViewById(R.id.alarm_stop_time);
-                alarm.mStopTime = new Pair<Integer, Integer>(stopTime.getCurrentHour(), stopTime.getCurrentMinute());
+                // Active anytime
+                Switch activeAnytimeSwitch = (Switch) dialogView.findViewById(R.id.alarm_active_anytime);
+                if (activeAnytimeSwitch.isChecked()) {
+                    alarm.mStartTime = new Pair<Integer, Integer>(0, 0);
+                    alarm.mStopTime = new Pair<Integer, Integer>(0, 0);
+                } else {
+                    // Start/Stop time
+                    TimePicker startTime = (TimePicker) dialogView.findViewById(R.id.alarm_start_time);
+                    TimePicker stopTime = (TimePicker) dialogView.findViewById(R.id.alarm_stop_time);
+                    if (!startTime.getCurrentHour().equals(stopTime.getCurrentHour()) || !startTime.getCurrentMinute().equals(stopTime.getCurrentMinute())) {
+                        alarm.mStartTime = new Pair<Integer, Integer>(startTime.getCurrentHour(), startTime.getCurrentMinute());
+                        alarm.mStopTime = new Pair<Integer, Integer>(stopTime.getCurrentHour(), stopTime.getCurrentMinute());
+                    } else {
+                        Toast.makeText(dialogView.getContext(), "Start and Stop time has to be different", Toast.LENGTH_SHORT).show();
+                    }
+                }
 
                 // Save result
                 roomConfig.update();

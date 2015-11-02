@@ -5,10 +5,8 @@
 
     <string name="title_activity_alarm">Alarm</string>
     <string name="stop_button">Stop Alarm</string>
-    <string name="title_activity_room_list">RoomList</string>
+    <string name="title_activity_main">Room List</string>
     <string name="hello_world">Hello world!</string>
-    <string name="title_activity_room_details">RoomDetails</string>
+    <string name="title_activity_room_details">Room Details</string>
 
-<!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

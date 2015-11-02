@@ -14,8 +14,9 @@
             <Switch
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="Enable Alarm"
+                android:textSize="20sp"
                 android:id="@+id/alarm_on_off" />
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -49,28 +50,42 @@
                     android:id="@+id/alarm_max_temp" />
             </LinearLayout>
 
-            <TextView
-                android:text="Start Time"
+            <Switch
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="left"
+                android:text="Active anytime"
+                android:checked="true"
+                android:id="@+id/alarm_active_anytime"
                 android:textSize="20sp"/>
-            <TimePicker
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:id="@+id/alarm_start_time" />
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:id="@+id/alarm_time_settings">
+                <TextView
+                    android:text="Start Time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="left"
+                    android:textSize="20sp"/>
+                <TimePicker
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/alarm_start_time" />
 
-            <TextView
-                android:text="Stop Time"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="left"
-                android:textSize="20sp"/>
-            <TimePicker
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:id="@+id/alarm_stop_time" />
+                <TextView
+                    android:text="Stop Time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="left"
+                    android:textSize="20sp"/>
+                <TimePicker
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/alarm_stop_time" />
 
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

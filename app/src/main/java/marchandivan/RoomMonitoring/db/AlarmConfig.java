@@ -38,6 +38,10 @@ public class AlarmConfig {
 
         }
 
+        public boolean isActiveAnyTime() {
+            return mStartTime.first.equals(mStopTime.first) && mStartTime.second.equals(mStopTime.second) && mStartTime.first.equals(0) && mStartTime.second.equals(0);
+        }
+
     }
 
     private ConfigDbHelper mDbHelper;

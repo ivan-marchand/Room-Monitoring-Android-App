@@ -156,7 +156,7 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
     }
 
     private boolean inQuietPeriod(RoomConfig roomConfig) {
-        return roomConfig.mLastAlarm + mQuietPeriod > SystemClock.elapsedRealtime();
+        return roomConfig.mLastAlarm + mQuietPeriod < SystemClock.elapsedRealtime();
     }
 
     private boolean exceedThreshold(AlarmConfig alarmConfig) throws JSONException {
@@ -164,7 +164,7 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
         Integer nowMinutes = now.getHours() * 60 + now.getMinutes();
         Float temperature = mRoomMap.containsKey(alarmConfig.mRoomName) ? Float.parseFloat(mRoomMap.get(alarmConfig.mRoomName).getString("temperature")) : null;
         for (AlarmConfig.Alarm alarm : alarmConfig.read()) {
-            if (isAlarmEnable(alarm, nowMinutes) && temperature != null && temperature > alarm.mMaxTemp || temperature < alarm.mMaxTemp) {
+            if (isAlarmEnable(alarm, nowMinutes) && temperature != null && (temperature > alarm.mMaxTemp || temperature < alarm.mMinTemp)) {
                 return true;
             }
         }
