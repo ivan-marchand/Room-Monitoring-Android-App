@@ -15,7 +15,6 @@ public class RoomConfigContract {
         public static final String TABLE_NAME = "room_config";
         public static final String COLUMN_NAME_ROOM = "room";
         public static final String COLUMN_NAME_LAST_UPDATE = "last_update";
-        public static final String COLUMN_NAME_ALARM_ACTIVE = "alarm_active";
         public static final String COLUMN_NAME_LAST_ALARM = "last_alarm";
     }
 }

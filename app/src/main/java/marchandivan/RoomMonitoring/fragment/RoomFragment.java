@@ -1,4 +1,4 @@
-package marchandivan.RoomMonitoring;
+package marchandivan.RoomMonitoring.fragment;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -13,6 +13,8 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
+import marchandivan.RoomMonitoring.R;
+import marchandivan.RoomMonitoring.RoomDetailsActivity;
 import marchandivan.RoomMonitoring.db.AlarmConfig;
 import marchandivan.RoomMonitoring.db.RoomConfig;
 

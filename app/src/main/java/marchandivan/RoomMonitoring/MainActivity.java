@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import marchandivan.RoomMonitoring.db.RoomConfig;
+import marchandivan.RoomMonitoring.fragment.RoomFragment;
 import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
 
 public class MainActivity extends AppCompatActivity {

@@ -1,4 +1,4 @@
-package marchandivan.RoomMonitoring;
+package marchandivan.RoomMonitoring.fragment;
 
 import android.content.SharedPreferences;
 import android.net.Uri;

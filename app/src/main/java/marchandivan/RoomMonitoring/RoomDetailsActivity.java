@@ -11,7 +11,6 @@ import android.util.Log;
 import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -25,6 +24,9 @@ import java.util.ArrayList;
 
 import marchandivan.RoomMonitoring.db.AlarmConfig;
 import marchandivan.RoomMonitoring.db.RoomConfig;
+import marchandivan.RoomMonitoring.dialog.AlarmDialogBuilder;
+import marchandivan.RoomMonitoring.fragment.AlarmDisplayFragment;
+import marchandivan.RoomMonitoring.fragment.DeviceFragment;
 import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
 
 public class RoomDetailsActivity extends AppCompatActivity {
@@ -36,6 +38,9 @@ public class RoomDetailsActivity extends AppCompatActivity {
 
     private void updateDisplay() {
         try {
+            // Open fragment transaction
+            FragmentManager fragmentManager = getSupportFragmentManager();
+            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
             // Update temperature, humidity display
             if (MonitorRoomReceiver.GetRooms().containsKey(mRoom)) {
                 JSONObject room = MonitorRoomReceiver.GetRooms().get(mRoom);
@@ -51,11 +56,9 @@ public class RoomDetailsActivity extends AppCompatActivity {
                 }
 
                 // Display device
-                FragmentManager fragmentManager = getSupportFragmentManager();
-                FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
                 JSONArray devices = room.getJSONArray("devices");
 
-                // Anythin to display ?
+                // Anything to display ?
                 LinearLayout deviceDisplay = (LinearLayout)this.findViewById(R.id.device_display);
                 deviceDisplay.setVisibility(devices.length() == 0 ? View.GONE : View.VISIBLE);
 
@@ -74,10 +77,6 @@ public class RoomDetailsActivity extends AppCompatActivity {
                         fragmentTransaction.add(R.id.device_list, deviceFragment, aTag);
                     }
                 }
-                // Something to commit?
-                if (!fragmentTransaction.isEmpty()) {
-                    fragmentTransaction.commit();
-                }
             }
 
             // Alarm settings
@@ -88,29 +87,14 @@ public class RoomDetailsActivity extends AppCompatActivity {
                 LinearLayout alarmDisplayContainer = (LinearLayout)this.findViewById(R.id.alarm_display);
                 alarmDisplayContainer.removeAllViews();
                 for (AlarmConfig.Alarm alarm : alarms) {
-                    // Display temp range
-                    TextView alarmTempRange = new TextView(this);
-                    alarmTempRange.setTextSize(20);
-                    alarmTempRange.setText(String.format("Min - Max (F) : %d - %d", alarm.mMinTemp, alarm.mMaxTemp));
-
-                    // Display alarm on/off icon
-                    ImageView alarmIcon = new ImageView(this);
-                    alarmIcon.setImageResource(roomConfig.mAlarmActive ? R.drawable.alarm : R.drawable.alarm_off);
-
-                    // Add views to container
-                    alarmDisplayContainer.addView(alarmIcon);
-                    alarmDisplayContainer.addView(alarmTempRange);
-
-                    // Display time range
-                    if (!alarm.isActiveAnyTime()) {
-                        TextView alarmTimeRange = new TextView(this);
-                        alarmTimeRange.setTextSize(20);
-                        alarmTimeRange.setText(String.format("From %02d:%02d to %02d:%02d",
-                                alarm.mStartTime.first, alarm.mStartTime.second, alarm.mStopTime.first, alarm.mStopTime.second));
-                        alarmDisplayContainer.addView(alarmTimeRange);
-                    }
+                    AlarmDisplayFragment alarmDisplay = AlarmDisplayFragment.newInstance(mRoom, alarm.mId);
+                    // Add fragment to view
+                    fragmentTransaction.add(R.id.alarm_display, alarmDisplay);
                 }
-
+            }
+            // Something to commit?
+            if (!fragmentTransaction.isEmpty()) {
+                fragmentTransaction.commit();
             }
         } catch (Exception e) {
             Log.d("DeviceDetails", "Error " + e.getMessage());
@@ -135,8 +119,8 @@ public class RoomDetailsActivity extends AppCompatActivity {
         roomCapitalized[0] = Character.toUpperCase(roomCapitalized[0]);
         roomName.setText(new String(roomCapitalized));
 
-        // Update temperature, humidity
-        updateDisplay();
+        // Start display refresh
+        mDisplayRefresher.run();
     }
 
     @Override
@@ -172,132 +156,22 @@ public class RoomDetailsActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }*/
 
-    public void editAlarm(final View view) {
-        // Build the dialog
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Edit Alarm");
+    public void addAlarm(final View view) {
+        AlarmDialogBuilder builder = new AlarmDialogBuilder(this, getLayoutInflater());
 
-        // Inflate layout
-        LayoutInflater inflater = this.getLayoutInflater();
-        final View dialogView = inflater.inflate(R.layout.add_alarm_dialog, null);
-        final AlarmConfig alarmConfig = new AlarmConfig(this, mRoom);
-        final ArrayList<AlarmConfig.Alarm> alarms = alarmConfig.read();
-        final RoomConfig roomConfig = new RoomConfig(this, mRoom);
-
-        // Set time pickers format
-        TimePicker startTime = (TimePicker)dialogView.findViewById(R.id.alarm_start_time);
-        startTime.setIs24HourView(true);
-        TimePicker stopTime = (TimePicker)dialogView.findViewById(R.id.alarm_stop_time);
-        stopTime.setIs24HourView(true);
-
-        // Alarm already exists ?
-        if (roomConfig.read() && !alarms.isEmpty()) {
-            AlarmConfig.Alarm alarm = alarms.get(0);
-
-            // Alarm On/Off
-            Switch alarmOnOff = (Switch)dialogView.findViewById(R.id.alarm_on_off);
-            alarmOnOff.setChecked(roomConfig.mAlarmActive);
-
-            // Min/Max temp
-            TextView minTemp = (TextView)dialogView.findViewById(R.id.alarm_min_temp);
-            minTemp.setText(String.valueOf(alarm.mMinTemp));
-            TextView maxTemp = (TextView)dialogView.findViewById(R.id.alarm_max_temp);
-            maxTemp.setText(String.valueOf(alarm.mMaxTemp));
-
-            // Active any time?
-            Switch activeAnytimeSwitch = (Switch)dialogView.findViewById(R.id.alarm_active_anytime);
-            Boolean activeAnyTime = alarm.isActiveAnyTime();
-            activeAnytimeSwitch.setChecked(activeAnyTime);
-            final LinearLayout timeSettings = (LinearLayout)dialogView.findViewById(R.id.alarm_time_settings);
-            timeSettings.setVisibility(activeAnyTime ? View.GONE: View.VISIBLE);
-            activeAnytimeSwitch.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Switch activeAnytimeSwitch = (Switch)v;
-                    timeSettings.setVisibility(activeAnytimeSwitch.isChecked() ? View.GONE : View.VISIBLE);
-                }
-            });
-
-            // Start/Stop time
-            startTime.setCurrentHour(alarm.mStartTime.first);
-            startTime.setCurrentMinute(alarm.mStartTime.second);
-            stopTime.setCurrentHour(alarm.mStopTime.first);
-            stopTime.setCurrentMinute(alarm.mStopTime.second);
-        }
-        builder.setView(dialogView);
-
-        // Add confirm/cancel buttons
-        builder.setPositiveButton("Save", new DialogInterface.OnClickListener() {
+        // Set post save callback to update display
+        builder.setPostSaveCallback(new Runnable() {
             @Override
-            public void onClick(DialogInterface dialog, int which) {
-                ArrayList<AlarmConfig.Alarm> alarms = alarmConfig.read();
-                AlarmConfig.Alarm alarm = null;
-                if (alarms.isEmpty()) {
-                    // No existing alarm, create a new one
-                    alarm = alarmConfig.getAlarmInstance();
-                } else {
-                    alarm = alarms.get(0);
-                }
-
-                // Alarm On/Off
-                Switch alarmOnOff = (Switch) dialogView.findViewById(R.id.alarm_on_off);
-                roomConfig.mAlarmActive = alarmOnOff.isChecked();
-
-                // Min/Max temp
-                TextView minTemp = (TextView) dialogView.findViewById(R.id.alarm_min_temp);
-                try {
-                    alarm.mMinTemp = Integer.parseInt(minTemp.getText().toString());
-                } catch (NumberFormatException e) {
-                    Toast.makeText(dialogView.getContext(), "Min Temperature value missing or invalid", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                TextView maxTemp = (TextView) dialogView.findViewById(R.id.alarm_max_temp);
-                try {
-                    alarm.mMaxTemp = Integer.parseInt(maxTemp.getText().toString());
-                } catch (NumberFormatException e) {
-                    Toast.makeText(dialogView.getContext(), "Max Temperature value missing or invalid", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                // Check value consistency
-                if (alarm.mMaxTemp <= alarm.mMinTemp) {
-                    Toast.makeText(dialogView.getContext(), "Max Temperature value must be higher than Min temperature value", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                // Active anytime
-                Switch activeAnytimeSwitch = (Switch) dialogView.findViewById(R.id.alarm_active_anytime);
-                if (activeAnytimeSwitch.isChecked()) {
-                    alarm.mStartTime = new Pair<Integer, Integer>(0, 0);
-                    alarm.mStopTime = new Pair<Integer, Integer>(0, 0);
-                } else {
-                    // Start/Stop time
-                    TimePicker startTime = (TimePicker) dialogView.findViewById(R.id.alarm_start_time);
-                    TimePicker stopTime = (TimePicker) dialogView.findViewById(R.id.alarm_stop_time);
-                    if (!startTime.getCurrentHour().equals(stopTime.getCurrentHour()) || !startTime.getCurrentMinute().equals(stopTime.getCurrentMinute())) {
-                        alarm.mStartTime = new Pair<Integer, Integer>(startTime.getCurrentHour(), startTime.getCurrentMinute());
-                        alarm.mStopTime = new Pair<Integer, Integer>(stopTime.getCurrentHour(), stopTime.getCurrentMinute());
-                    } else {
-                        Toast.makeText(dialogView.getContext(), "Start and Stop time has to be different", Toast.LENGTH_SHORT).show();
-                    }
-                }
-
-                // Save result
-                roomConfig.update();
-                alarmConfig.update(alarm);
-
+            public void run() {
                 // Update display
                 updateDisplay();
             }
         });
 
-        // Add confirm/cancel buttons
-        builder.setNegativeButton("Cancel", null);
-
         // Show the dialog
-        AlertDialog dialog = builder.create();
+        AlertDialog dialog = builder.create(mRoom);
         dialog.show();
+
     }
 
     private Runnable mDisplayRefresher = new Runnable() {

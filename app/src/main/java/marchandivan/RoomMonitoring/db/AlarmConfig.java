@@ -4,15 +4,10 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.support.annotation.NonNull;
 import android.util.Log;
 import android.util.Pair;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
 
 /**
  * Created by ivan on 10/31/15.
@@ -20,7 +15,8 @@ import java.util.ListIterator;
 public class AlarmConfig {
 
     public class Alarm {
-        private long mId = 0;
+        public long mId = 0;
+        public Boolean mAlarmActive = false;
         public Integer mMaxTemp = 0;
         public Integer mMinTemp = 0;
         public Pair<Integer, Integer> mStartTime = new Pair<Integer, Integer>(0, 0);
@@ -28,9 +24,9 @@ public class AlarmConfig {
 
         private Alarm() {}
         private Alarm(Integer minTemp,
-                     Integer maxTemp,
-                     Pair<Integer, Integer> startTime,
-                     Pair<Integer, Integer> stopTime) {
+                      Integer maxTemp,
+                      Pair<Integer, Integer> startTime,
+                      Pair<Integer, Integer> stopTime) {
             mMinTemp = minTemp;
             mMaxTemp = maxTemp;
             mStartTime = startTime;
@@ -71,11 +67,6 @@ public class AlarmConfig {
         if (alarm.mId != 0) {
             delete(alarm);
         }
-        Log.d("AlarmConfig:add", "Id " + String.valueOf(alarm.mId));
-        Log.d("AlarmConfig:add", "Max Temp " + String.valueOf(alarm.mMaxTemp));
-        Log.d("AlarmConfig:add", "Min Temp " + String.valueOf(alarm.mMinTemp));
-        Log.d("AlarmConfig:add", "Start Time " + String.valueOf(alarm.mStartTime));
-        Log.d("AlarmConfig:add", "Stop Time " + String.valueOf(alarm.mStopTime));
 
         // Gets the data repository in write mode
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
@@ -83,6 +74,7 @@ public class AlarmConfig {
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
         values.put(AlarmConfigContract.AlarmEntry.COLUMN_NAME_ROOM, mRoomName);
+        values.put(AlarmConfigContract.AlarmEntry.COLUMN_NAME_ALARM_ACTIVE, alarm.mAlarmActive ? 1:0);
         values.put(AlarmConfigContract.AlarmEntry.COLUMN_NAME_MAX_TEMP, alarm.mMaxTemp);
         values.put(AlarmConfigContract.AlarmEntry.COLUMN_NAME_MIN_TEMP, alarm.mMinTemp);
         values.put(AlarmConfigContract.AlarmEntry.COLUMN_NAME_START_HOUR, alarm.mStartTime.first);
@@ -131,6 +123,7 @@ public class AlarmConfig {
 
         String[] projection = {
                 AlarmConfigContract.AlarmEntry._ID,
+                AlarmConfigContract.AlarmEntry.COLUMN_NAME_ALARM_ACTIVE,
                 AlarmConfigContract.AlarmEntry.COLUMN_NAME_MAX_TEMP,
                 AlarmConfigContract.AlarmEntry.COLUMN_NAME_MIN_TEMP,
                 AlarmConfigContract.AlarmEntry.COLUMN_NAME_START_HOUR,
@@ -157,10 +150,10 @@ public class AlarmConfig {
         }
 
         // Get values
-        cursor.moveToFirst();
-        for (int i = 0 ; i < cursor.getCount() ; i++) {
+        while (cursor.moveToNext()) {
             Alarm alarm = new Alarm();
             alarm.mId = cursor.getLong(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry._ID));
+            alarm.mAlarmActive = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_ALARM_ACTIVE)) == 1;
             alarm.mMaxTemp = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_MAX_TEMP));
             alarm.mMinTemp = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_MIN_TEMP));
             Integer startHour = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_START_HOUR));
@@ -170,18 +163,63 @@ public class AlarmConfig {
             Integer stopMinute = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_STOP_MINUTE));
             alarm.mStopTime = new Pair<Integer, Integer>(stopHour, stopMinute);
 
-            Log.d("AlarmConfig:read", "Id " + String.valueOf(alarm.mId));
-            Log.d("AlarmConfig:read", "Max Temp " + String.valueOf(alarm.mMaxTemp));
-            Log.d("AlarmConfig:read", "Min Temp " + String.valueOf(alarm.mMinTemp));
-            Log.d("AlarmConfig:read", "Start Time " + String.valueOf(alarm.mStartTime));
-            Log.d("AlarmConfig:read", "Stop Time " + String.valueOf(alarm.mStopTime));
-
             alarms.add(alarm);
-            cursor.moveToNext();
         }
 
 
         db.close();
         return alarms;
     }
+
+    public Alarm read(long alarmId) {
+
+        SQLiteDatabase db = mDbHelper.getReadableDatabase();
+
+        String[] projection = {
+                AlarmConfigContract.AlarmEntry._ID,
+                AlarmConfigContract.AlarmEntry.COLUMN_NAME_ALARM_ACTIVE,
+                AlarmConfigContract.AlarmEntry.COLUMN_NAME_MAX_TEMP,
+                AlarmConfigContract.AlarmEntry.COLUMN_NAME_MIN_TEMP,
+                AlarmConfigContract.AlarmEntry.COLUMN_NAME_START_HOUR,
+                AlarmConfigContract.AlarmEntry.COLUMN_NAME_START_MINUTE,
+                AlarmConfigContract.AlarmEntry.COLUMN_NAME_STOP_HOUR,
+                AlarmConfigContract.AlarmEntry.COLUMN_NAME_STOP_MINUTE,
+        };
+
+        String[] selectionArgs = {String.valueOf(alarmId)};
+        Cursor cursor = db.query(
+                AlarmConfigContract.AlarmEntry.TABLE_NAME, // The table to query
+                projection,                                // The columns to return
+                AlarmConfigContract.AlarmEntry._ID + "=?", // The columns for the WHERE clause
+                selectionArgs,                             // The values for the WHERE clause
+                null,                                      // don't group the rows
+                null,                                      // don't filter by row groups
+                null                                       // The sort order
+        );
+
+        // Anything found
+        if (cursor.getCount() == 0) {
+            db.close();
+            return null;
+        }
+
+        // Get values
+        Alarm alarm = new Alarm();
+
+        cursor.moveToFirst();
+        alarm.mId = cursor.getLong(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry._ID));
+        alarm.mAlarmActive = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_ALARM_ACTIVE)) == 1;
+        alarm.mMaxTemp = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_MAX_TEMP));
+        alarm.mMinTemp = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_MIN_TEMP));
+        Integer startHour = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_START_HOUR));
+        Integer startMinute = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_START_MINUTE));
+        alarm.mStartTime = new Pair<Integer, Integer>(startHour, startMinute);
+        Integer stopHour = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_STOP_HOUR));
+        Integer stopMinute = cursor.getInt(cursor.getColumnIndexOrThrow(AlarmConfigContract.AlarmEntry.COLUMN_NAME_STOP_MINUTE));
+        alarm.mStopTime = new Pair<Integer, Integer>(stopHour, stopMinute);
+
+        db.close();
+        return alarm;
+    }
+
 }

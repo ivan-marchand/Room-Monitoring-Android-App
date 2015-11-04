@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
-import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
@@ -18,6 +17,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.sql.Time;
+import java.util.Calendar;
 import java.util.HashMap;
 
 import marchandivan.RoomMonitoring.AlarmActivity;
@@ -55,7 +55,7 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
 
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         am.setInexactRepeating(AlarmManager.RTC_WAKEUP,
-                SystemClock.elapsedRealtime(),
+                System.currentTimeMillis() + mPollingInterval,
                 mPollingInterval,
                 pendingIntent);
         Log.d("MonitorRoom", "Activate monitoring");
@@ -100,7 +100,7 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
 
         protected void onPostExecute(JSONArray result) {
             try {
-                long lastUpdate = SystemClock.elapsedRealtime();
+                long lastUpdate = System.currentTimeMillis();
                 for (int i = 0 ; i < result.length() ; i++) {
                     JSONObject room = result.getJSONObject(i);
                     String roomName = room.getString("room");
@@ -142,12 +142,19 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
             HashMap<String, RoomConfig> roomConfigs = RoomConfig.GetMap(context);
             for (RoomConfig roomConfig : roomConfigs.values()) {
                 AlarmConfig alarmConfig = new AlarmConfig(context, roomConfig.mRoomName);
-                if (mAlarmActivated && roomConfig.mAlarmActive && !inQuietPeriod(roomConfig) && exceedThreshold(alarmConfig)) {
-                        roomConfig.updateAlarm();
-                        Log.d("MonitorRoom", "Firing alarm!");
-                        Intent alarmIntent = new Intent(context, AlarmActivity.class);
-                        alarmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        context.startActivity(alarmIntent);
+                if (mAlarmActivated && !inQuietPeriod(roomConfig)) {
+                    for (AlarmConfig.Alarm alarm : alarmConfig.read()) {
+                        if (alarm.mAlarmActive && exceedThreshold(roomConfig.mRoomName, alarm)) {
+                            roomConfig.updateAlarm();
+                            Log.d("MonitorRoom", "Firing alarm!");
+                            Intent alarmIntent = new Intent(context, AlarmActivity.class);
+                            alarmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            context.startActivity(alarmIntent);
+
+                            // No need to start alarm several time
+                            return;
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
@@ -156,22 +163,19 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
     }
 
     private boolean inQuietPeriod(RoomConfig roomConfig) {
-        return roomConfig.mLastAlarm + mQuietPeriod < SystemClock.elapsedRealtime();
+        return roomConfig.mLastAlarm + mQuietPeriod > System.currentTimeMillis();
     }
 
-    private boolean exceedThreshold(AlarmConfig alarmConfig) throws JSONException {
-        Time now = new Time(SystemClock.elapsedRealtime());
-        Integer nowMinutes = now.getHours() * 60 + now.getMinutes();
-        Float temperature = mRoomMap.containsKey(alarmConfig.mRoomName) ? Float.parseFloat(mRoomMap.get(alarmConfig.mRoomName).getString("temperature")) : null;
-        for (AlarmConfig.Alarm alarm : alarmConfig.read()) {
-            if (isAlarmEnable(alarm, nowMinutes) && temperature != null && (temperature > alarm.mMaxTemp || temperature < alarm.mMinTemp)) {
-                return true;
-            }
-        }
-        return false;
+    private boolean exceedThreshold(String roomName, AlarmConfig.Alarm alarm) throws JSONException {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(System.currentTimeMillis());
+        Integer nowMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE);
+        Float temperature = mRoomMap.containsKey(roomName) ? Float.parseFloat(mRoomMap.get(roomName).getString("temperature")) : null;
+        return isAlarmEnable(alarm, nowMinutes) && temperature != null && (temperature > alarm.mMaxTemp || temperature < alarm.mMinTemp);
     }
 
     public boolean isAlarmEnable(AlarmConfig.Alarm alarm, Integer nowMinutes) {
+        Log.d("MonitorRoomReceiver", String.valueOf(nowMinutes));
         Integer startMinutes = alarm.mStartTime.first * 60 + alarm.mStartTime.second;
         Integer stopMinutes = alarm.mStopTime.first * 60 + alarm.mStopTime.second;
         if (stopMinutes > startMinutes) {

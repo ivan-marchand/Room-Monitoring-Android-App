@@ -14,7 +14,6 @@ public class ConfigDbHelper extends SQLiteOpenHelper {
                     RoomConfigContract.RoomEntry._ID + " INTEGER PRIMARY KEY," +
                     RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM + " TEXT," +
                     RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE + " INTEGER," +
-                    RoomConfigContract.RoomEntry.COLUMN_NAME_ALARM_ACTIVE + " INTEGER, " +
                     RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM + " INTEGER" +
                     ")";
 
@@ -22,6 +21,7 @@ public class ConfigDbHelper extends SQLiteOpenHelper {
             "CREATE TABLE " + AlarmConfigContract.AlarmEntry.TABLE_NAME + " (" +
                     AlarmConfigContract.AlarmEntry._ID + " INTEGER PRIMARY KEY," +
                     AlarmConfigContract.AlarmEntry.COLUMN_NAME_ROOM + " TEXT," +
+                    AlarmConfigContract.AlarmEntry.COLUMN_NAME_ALARM_ACTIVE + " INTEGER, " +
                     AlarmConfigContract.AlarmEntry.COLUMN_NAME_MAX_TEMP + " INTEGER," +
                     AlarmConfigContract.AlarmEntry.COLUMN_NAME_MIN_TEMP + " INTEGER," +
                     AlarmConfigContract.AlarmEntry.COLUMN_NAME_START_HOUR + " INTEGER," +
@@ -36,7 +36,7 @@ public class ConfigDbHelper extends SQLiteOpenHelper {
             "DROP TABLE IF EXISTS " + AlarmConfigContract.AlarmEntry.TABLE_NAME;
 
     // If you change the database schema, you must increment the database version.
-    public static final int DATABASE_VERSION = 1;
+    public static final int DATABASE_VERSION = 2;
     public static final String DATABASE_NAME = "RoomConfig.db";
 
     public ConfigDbHelper(Context context) {

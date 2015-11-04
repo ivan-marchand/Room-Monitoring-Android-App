@@ -4,7 +4,6 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.os.SystemClock;
 import android.util.Log;
 
 import java.util.HashMap;
@@ -17,7 +16,6 @@ public class RoomConfig {
     private ConfigDbHelper mDbHelper;
     public String mRoomName;
     public long mLastUpdate = 0;
-    public Boolean mAlarmActive = false;
     public long mLastAlarm = 0;
 
     static public HashMap<String, RoomConfig> GetMap(Context context) {
@@ -70,11 +68,6 @@ public class RoomConfig {
         // Delete existing entry if any
         delete();
 
-        Log.d("RoomConfig:add", "Id " + String.valueOf(mId));
-        Log.d("RoomConfig:add", "Last update " + String.valueOf(mLastUpdate));
-        Log.d("RoomConfig:add", "Alarm active " + String.valueOf(mAlarmActive));
-        Log.d("RoomConfig:add", "Last alarm " + String.valueOf(mLastAlarm));
-
         // Gets the data repository in write mode
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
@@ -82,7 +75,6 @@ public class RoomConfig {
         ContentValues values = new ContentValues();
         values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM, mRoomName);
         values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE, mLastUpdate);
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_ALARM_ACTIVE, mAlarmActive ? 1:0);
         values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM, mLastAlarm);
 
         // Insert the new row, returning the primary key value of the new row
@@ -94,7 +86,6 @@ public class RoomConfig {
     }
 
     public void delete() {
-        Log.d("RoomConfig:delete", "Room " + mRoomName);
         // Gets the data repository in write mode
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         // Define 'where' part of query.
@@ -112,7 +103,6 @@ public class RoomConfig {
         String[] projection = {
                 RoomConfigContract.RoomEntry._ID,
                 RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE,
-                RoomConfigContract.RoomEntry.COLUMN_NAME_ALARM_ACTIVE,
                 RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM
         };
 
@@ -137,13 +127,7 @@ public class RoomConfig {
         cursor.moveToFirst();
         mId = cursor.getLong(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry._ID));
         mLastUpdate = cursor.getLong(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE));
-        mAlarmActive = cursor.getInt(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_ALARM_ACTIVE)) == 1 ? true:false;
         mLastAlarm = cursor.getLong(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM));
-
-        Log.d("RoomConfig:read", "Id " + String.valueOf(mId));
-        Log.d("RoomConfig:read", "Last update " + String.valueOf(mLastUpdate));
-        Log.d("RoomConfig:read", "Alarm active " + String.valueOf(mAlarmActive));
-        Log.d("RoomConfig:read", "Last alarm " + String.valueOf(mLastAlarm));
 
         db.close();
         return true;
@@ -171,7 +155,7 @@ public class RoomConfig {
     }
 
     public void updateAlarm() {
-        mLastAlarm = SystemClock.elapsedRealtime();
+        mLastAlarm = System.currentTimeMillis();
         // Gets the data repository in write mode
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
