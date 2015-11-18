@@ -113,7 +113,7 @@ public class DeviceFragment extends Fragment implements View.OnClickListener {
             }
 
             // Configure the REST client
-            mRestClient = new RestClient(getActivity().getAssets());
+            mRestClient = new RestClient(this.getActivity());
             SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getActivity());
             mRestClient.configure(sharedPref);
 

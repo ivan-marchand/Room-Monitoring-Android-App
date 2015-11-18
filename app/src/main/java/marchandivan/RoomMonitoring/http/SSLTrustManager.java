@@ -1,0 +1,306 @@
+package marchandivan.RoomMonitoring.http;
+
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.Principal;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateParsingException;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
+import org.apache.http.conn.ssl.BrowserCompatHostnameVerifier;
+import org.apache.http.conn.ssl.X509HostnameVerifier;
+
+import android.content.Context;
+import android.util.Log;
+
+public final class SSLTrustManager {
+    public enum SslFailureReason {
+        CERT_NOT_TRUSTED,
+        CERT_CHANGED,
+    }
+
+    private static final String DEBUG_TAG = "SSLTrustManager";
+
+    private X509TrustManager defaultTrustManager;
+
+    private SecureX509TrustManager manager = null;
+
+    private SSLSocketFactory cachedFactory = null;
+
+    private String mHostName;
+
+    private String mUrl;
+
+    private Context mContext;
+
+    private static SSLTrustManager instance;
+
+    private SSLTrustManager(Context context, String hostName, String port) {
+        mContext = context;
+        mHostName = hostName;
+        mUrl = mHostName + ":" + port;
+    }
+
+    public static synchronized SSLTrustManager instance(Context context, String hostName, String port) {
+        if (instance == null) {
+            instance = new SSLTrustManager(context, hostName, port);
+            instance.init();
+        } else {
+            instance.mContext = context;
+            instance.mHostName = hostName;
+            instance.mUrl = hostName + ":" + port;
+        }
+
+        return instance;
+    }
+
+    public static SslFailureReason GetFailureReason() {
+        SslFailureReason reason = null;
+        if (instance != null && instance.manager != null) {
+            reason = instance.manager.getReason();
+        }
+
+        return reason != null ? reason : SslFailureReason.CERT_NOT_TRUSTED;
+    }
+
+    public static synchronized void SaveCertificate(boolean rememberChoice) {
+        if (instance != null) {
+            CertsManager.instance(instance.mContext).saveCert(instance.mUrl, instance.getCertsChain(), rememberChoice);
+        }
+    }
+
+    private void init() {
+        try {
+            javax.net.ssl.TrustManagerFactory tmf;
+            TrustManager[] tms;
+            tmf = javax.net.ssl.TrustManagerFactory.getInstance("X509");
+            tmf.init((KeyStore) null);
+            tms = tmf.getTrustManagers();
+            if (tms != null) {
+                for (TrustManager tm : tms) {
+                    if (tm instanceof X509TrustManager) {
+                        defaultTrustManager = (X509TrustManager) tm;
+                        break;
+                    }
+                }
+            }
+        } catch (NoSuchAlgorithmException e) {
+            Log.e(DEBUG_TAG, "Unable to get X509 Trust Manager ", e);
+        } catch (KeyStoreException e) {
+            Log.e(DEBUG_TAG, "Key Store exception while initializing TrustManagerFactory ", e);
+        }
+    }
+
+    public synchronized TrustManager[] getTrustManager() {
+        if (manager == null) {
+            manager = new SecureX509TrustManager(mHostName, mUrl);
+        }
+
+        return new TrustManager[] {manager};
+    }
+
+    public synchronized SSLSocketFactory getSSLSocketFactory() {
+        if (cachedFactory!= null) {
+            return cachedFactory;
+        }
+
+        try {
+            TrustManager[] mgrs = getTrustManager();
+            cachedFactory = new SSLCustomSocketFactory(null, mgrs, new SecureRandom());
+            Log.d(DEBUG_TAG, "a SSLSocketFactory is created:" + cachedFactory);
+        } catch (Exception e) {
+            Log.e(DEBUG_TAG, "error when create SSLSocketFactory", e);
+        }
+
+        return cachedFactory;
+    }
+
+    public List<X509Certificate> getCertsChain() {
+
+        if (manager == null) {
+            return null;
+        }
+
+        return manager.getServerCertsChain();
+    }
+    
+    public X509Certificate getCertificateInfo() throws CertificateParsingException {
+        List<X509Certificate> certs = getCertsChain();
+        if (certs == null || certs.size() == 0) {
+            return null;
+        }
+        final X509Certificate cert = certs.get(0);
+        return cert;
+    }
+
+    /**
+     * Reorder the certificates chain, since it may not be in the right order when passed to us
+     * @see http://stackoverflow.com/questions/7822381/need-help-understanding-certificate-chains
+     */
+    public List<X509Certificate> orderCerts(X509Certificate[] certificates) {
+        if (certificates == null || certificates.length == 0) {
+            return new ArrayList<X509Certificate>();
+        }
+
+        Set<X509Certificate> all = new HashSet<X509Certificate>();
+        for (X509Certificate certificate : certificates) {
+            all.add(certificate);
+        }
+
+        List<X509Certificate> certs = new ArrayList<X509Certificate>(all);
+        // certs.addAll(Arrays.asList(certificates));
+        X509Certificate certChain = certs.get(0);
+        certs.remove(certChain);
+        LinkedList<X509Certificate> chainList= new LinkedList<X509Certificate>();
+        chainList.add(certChain);
+        Principal certIssuer = certChain.getIssuerDN();
+        Principal certSubject = certChain.getSubjectDN();
+        while(!certs.isEmpty()){
+            List<X509Certificate> tempcerts = new ArrayList<X509Certificate>(certs);
+            for (X509Certificate cert : tempcerts) {
+                if(cert.getIssuerDN().equals(certSubject)){
+                    chainList.addFirst(cert);
+                    certSubject = cert.getSubjectDN();
+                    certs.remove(cert);
+                    continue;
+                }
+
+                if(cert.getSubjectDN().equals(certIssuer)){
+                    chainList.addLast(cert);
+                    certIssuer = cert.getIssuerDN();
+                    certs.remove(cert);
+                    continue;
+                }
+            }
+        }
+
+        return chainList;
+    }
+
+    private class SecureX509TrustManager implements X509TrustManager {
+        private SslFailureReason reason;
+        private String mHostname;
+        private String mUrl;
+
+        private volatile List<X509Certificate> certsChain = new ArrayList<X509Certificate>();
+
+        public SecureX509TrustManager(String hostname, String url) {
+            mHostname = hostname;
+            mUrl = url;
+
+            Log.d(DEBUG_TAG, "a SecureX509TrustManager is created:" + hashCode());
+        }
+
+        public List<X509Certificate> getServerCertsChain() {
+            return certsChain;
+        }
+
+        public SslFailureReason getReason() {
+            return reason;
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType)
+                throws CertificateException {
+            defaultTrustManager.checkClientTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType)
+                throws CertificateException {
+            if (chain == null || chain.length == 0) {
+                defaultTrustManager.checkServerTrusted(chain, authType);
+                return;
+            }
+
+            List<X509Certificate> orderedChain = orderCerts(chain);
+            try {
+                // First try to do default check
+                defaultTrustManager.checkServerTrusted(chain, authType);
+                // Second check if hostname is valid
+                validateHostName(mHostname, orderedChain);
+            } catch (CertificateException e) {
+                customCheck(orderedChain, authType);
+            }
+        }
+
+        public String getCertificateInfo(String url) throws CertificateParsingException {
+            X509Certificate cert = CertsManager.instance(mContext).getCertificate(url);
+            return "sigalgName:" + cert.getSigAlgName() + " Type: "
+                    + cert.getType() + " Version: " + cert.getVersion()
+                    + " IssuerAlternative: " + cert.getIssuerAlternativeNames()
+                    + " NotAfter: " + cert.getNotAfter();
+        }
+
+        /**
+         * Interface for checking if a hostname matches the names stored inside the server's X.509 certificate
+         */
+        private void validateHostName(String hostname, List<X509Certificate> chain) throws CertificateException {
+            X509Certificate cert = chain.get(0);
+            // BrowserCompatHostnameVerifier can verify hostnames in the form of IP addresses (like a browser)
+            // where as the DefaultHostnameVerifier will always try to lookup IP addresses via the DNS.
+            X509HostnameVerifier mHostnameVerifier = new BrowserCompatHostnameVerifier();
+            try {
+                mHostnameVerifier.verify(hostname, cert);
+            } catch (SSLException e) {
+                throw new CertificateException();
+            }
+        }
+
+        private void customCheck(List<X509Certificate> chain, String authType)
+            throws CertificateException {
+
+            certsChain = new ArrayList<X509Certificate>(chain);
+
+            X509Certificate cert = chain.get(0);
+
+            X509Certificate savedCert = CertsManager.instance(mContext).getCertificate(mUrl);
+            if (savedCert == null) {
+                Log.d(DEBUG_TAG, "no saved cert for " + mUrl);
+                reason = SslFailureReason.CERT_NOT_TRUSTED;
+                throw new CertificateException();
+            } else if (savedCert.equals(cert)) {
+                // The user has confirmed to trust this certificate
+                Log.d(DEBUG_TAG, "the cert of " + mUrl + " is trusted");
+                return;
+            } else {
+                // The certificate is different from the one user confirmed to trust,
+                // This may be either:
+                // 1. The server admin has changed its cert
+                // 2. The user is under security attack
+                Log.d(DEBUG_TAG, "the cert of " + mUrl + " has changed");
+                reason = SslFailureReason.CERT_CHANGED;
+                throw new CertificateException();
+            }
+        }
+
+        public X509Certificate[] getAcceptedIssuers() {
+            return defaultTrustManager.getAcceptedIssuers();
+        }
+
+        @Override
+        protected void finalize() {
+            Log.d(DEBUG_TAG, "a SecureX509TrustManager is finalized:" + hashCode());
+        }
+    }
+    
+    public SSLSocketFactory getCachedFactory() {
+        return cachedFactory;
+    }
+
+    /*public void setCachedFactories(Map<Account, SSLSocketFactory> cachedFactories) {
+        this.cachedFactories = cachedFactories;
+    }*/
+}

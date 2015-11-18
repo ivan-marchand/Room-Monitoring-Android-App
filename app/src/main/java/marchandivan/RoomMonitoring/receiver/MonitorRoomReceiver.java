@@ -16,7 +16,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.sql.Time;
 import java.util.Calendar;
 import java.util.HashMap;
 
@@ -158,7 +157,7 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
                 }
             }
         } catch (Exception e) {
-
+            e.printStackTrace();
         }
     }
 
@@ -186,9 +185,10 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
         // startMinutes == stopMinutes
         return true;
     }
+
     public void configure(Context context) {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-        mRestClient = new RestClient(context.getAssets());
+        mRestClient = new RestClient(context);
         mRestClient.configure(sharedPreferences);
 
         mAlarmActivated = sharedPreferences.getBoolean("temperature_alarm", false);

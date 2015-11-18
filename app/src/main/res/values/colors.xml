@@ -2,8 +2,9 @@
 
     <color name="black_overlay">#66000000</color>
     <color name="black">#000000</color>
-    <color name="grey">#B0B0B0</color>
-    <color name="light_grey">#E0E0E0</color>
+    <color name="dark_gray">#B0B0B0</color>
+    <color name="gray">#E0E0E0</color>
+    <color name="light_gray">#E8E8E8</color>
     <color name="blue">#0000FF</color>
     <color name="light_blue">#ADD8E6</color>
     <color name="red">#FF0000</color>

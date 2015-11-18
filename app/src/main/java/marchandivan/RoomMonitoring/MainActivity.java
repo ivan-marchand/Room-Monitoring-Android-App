@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
                     updateDisplay();
                 }
             } catch (Exception e) {
-
+                e.printStackTrace();
             } finally {
                 mHandler.removeCallbacks(this);
                 mHandler.postDelayed(this, MonitorRoomReceiver.GetRooms().isEmpty() ? 1000 : mDisplayRefreshInterval);

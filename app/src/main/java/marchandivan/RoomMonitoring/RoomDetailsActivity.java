@@ -86,8 +86,9 @@ public class RoomDetailsActivity extends AppCompatActivity {
                 ArrayList<AlarmConfig.Alarm> alarms = alarmConfig.read();
                 LinearLayout alarmDisplayContainer = (LinearLayout)this.findViewById(R.id.alarm_display);
                 alarmDisplayContainer.removeAllViews();
+                int i = 0;
                 for (AlarmConfig.Alarm alarm : alarms) {
-                    AlarmDisplayFragment alarmDisplay = AlarmDisplayFragment.newInstance(mRoom, alarm.mId);
+                    AlarmDisplayFragment alarmDisplay = AlarmDisplayFragment.newInstance(mRoom, alarm.mId, i++ % 2 == 0);
                     // Add fragment to view
                     fragmentTransaction.add(R.id.alarm_display, alarmDisplay);
                 }

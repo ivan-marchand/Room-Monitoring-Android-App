@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,8 +31,10 @@ import marchandivan.RoomMonitoring.dialog.AlarmDialogBuilder;
 public class AlarmDisplayFragment extends Fragment {
     private static final String ARG_ROOM = "room";
     private static final String ARG_ALARM_ID = "alarm_id";
+    private static final String EVEN_ROW = "even_row";
 
     private String mRoom;
+    private boolean mEvenRow;
     private AlarmConfig.Alarm mAlarm;
     private LayoutInflater mInflater;
     private Fragment mFragment;
@@ -43,11 +46,12 @@ public class AlarmDisplayFragment extends Fragment {
      * @return A new instance of fragment AlarmDisplayFragment.
      */
     // TODO: Rename and change types and number of parameters
-    public static AlarmDisplayFragment newInstance(String room, long alarmId) {
+    public static AlarmDisplayFragment newInstance(String room, long alarmId, boolean evenRow) {
         AlarmDisplayFragment fragment = new AlarmDisplayFragment();
         Bundle args = new Bundle();
         args.putString(ARG_ROOM, room);
         args.putLong(ARG_ALARM_ID, alarmId);
+        args.putBoolean(EVEN_ROW, evenRow);
         fragment.setArguments(args);
         return fragment;
     }
@@ -142,7 +146,7 @@ public class AlarmDisplayFragment extends Fragment {
         if (getArguments() != null) {
             mRoom = getArguments().getString(ARG_ROOM);
             long alarmId = getArguments().getLong(ARG_ALARM_ID);
-
+            mEvenRow = getArguments().getBoolean(EVEN_ROW);
             // Get alarm config
             AlarmConfig alarmConfig = new AlarmConfig(this.getActivity(), mRoom);
             mAlarm = alarmConfig.read(alarmId);
@@ -155,6 +159,9 @@ public class AlarmDisplayFragment extends Fragment {
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_alarm_display, container, false);
+        if (!mEvenRow) {
+            view.setBackgroundColor(getResources().getColor(R.color.light_gray));
+        }
         mInflater = inflater;
 
         // Update display
