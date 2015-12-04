@@ -12,8 +12,6 @@ import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 
-import java.util.ArrayList;
-
 import marchandivan.RoomMonitoring.R;
 import marchandivan.RoomMonitoring.db.AlarmConfig;
 import marchandivan.RoomMonitoring.db.RoomConfig;
@@ -23,13 +21,11 @@ import marchandivan.RoomMonitoring.db.RoomConfig;
  */
 public class AlarmDialogBuilder {
     private Context mContext;
-    private LayoutInflater mInflater;
     private AlertDialog.Builder mBuilder;
     private Runnable mPostSaveCallback = null;
 
-    public AlarmDialogBuilder(Context context, LayoutInflater inflater) {
+    public AlarmDialogBuilder(Context context) {
         mContext = context;
-        mInflater = inflater;
         mBuilder = new AlertDialog.Builder(context);
     }
 
@@ -54,7 +50,8 @@ public class AlarmDialogBuilder {
 
     private AlertDialog createDialog(String room, final AlarmConfig.Alarm alarm) {
         // Inflate layout
-        final View dialogView = mInflater.inflate(R.layout.add_alarm_dialog, null);
+        LayoutInflater inflater = (LayoutInflater)mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        final View dialogView = inflater.inflate(R.layout.add_alarm_dialog, null);
 
         // Get Room and alarm config
         final AlarmConfig alarmConfig = new AlarmConfig(mContext, room);

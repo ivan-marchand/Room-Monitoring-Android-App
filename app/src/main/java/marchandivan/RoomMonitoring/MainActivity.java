@@ -1,5 +1,6 @@
 package marchandivan.RoomMonitoring;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.support.v4.app.FragmentManager;
@@ -97,9 +98,6 @@ public class MainActivity extends AppCompatActivity {
         // Init the callback handler
         mHandler = new Handler();
 
-        // Get current room temp
-        MonitorRoomReceiver.Update(this);
-
         // Activate the room monitoring
         MonitorRoomReceiver.Activate(this);
 
@@ -121,7 +119,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
 
         // On destroy, if alarm is not activated... no need to keep the monitoring running
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -129,6 +126,7 @@ public class MainActivity extends AppCompatActivity {
             MonitorRoomReceiver.Deactivate(this);
         }
 
+        super.onDestroy();
     }
 
     @Override

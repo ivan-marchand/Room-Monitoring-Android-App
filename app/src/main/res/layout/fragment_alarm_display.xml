@@ -1,103 +1,102 @@
-<TableLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
-    android:paddingBottom="@dimen/activity_vertical_margin"
     tools:context="marchandivan.RoomMonitoring.fragment.AlarmDisplayFragment">
-    <TableRow
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:paddingLeft="0sp"
+        android:paddingRight="@dimen/activity_horizontal_margin"
+        android:contentDescription="Alarm Active"
+        android:id="@+id/alarm_icon"
+        android:src="@drawable/alarm"/>
+    <LinearLayout
+        android:id="@+id/alarm_settings_display"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:paddingLeft="0sp"
-            android:paddingRight="@dimen/activity_horizontal_margin"
-            android:contentDescription="Alarm Active"
-            android:id="@+id/alarm_icon"
-            android:src="@drawable/alarm"/>
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:orientation="vertical"
+        android:layout_gravity="center_vertical"
+        android:layout_toRightOf="@+id/alarm_icon">
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_gravity="center_vertical">
-            <LinearLayout
-                android:layout_width="match_parent"
+            android:paddingRight="@dimen/activity_horizontal_margin"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:paddingRight="@dimen/activity_horizontal_margin"
-                android:orientation="horizontal">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="20sp"
-                    android:text="Min - Max (F)"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="20sp"
-                    android:text="70"
-                    android:id="@+id/alarm_min_temp"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="20sp"
-                    android:text=" - "/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="20sp"
-                    android:text="80"
-                    android:id="@+id/alarm_max_temp"/>
-            </LinearLayout>
-            <LinearLayout
-                android:layout_width="match_parent"
+                android:textSize="20sp"
+                android:text="Min - Max (F)"/>
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:visibility="gone"
-                android:id="@+id/alarm_time_display">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="20sp"
-                    android:text="From "/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="20sp"
-                    android:text="-"
-                    android:id="@+id/alarm_start_time"/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="20sp"
-                    android:text=" to "/>
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textSize="20sp"
-                    android:text="-"
-                    android:id="@+id/alarm_stop_time"/>
-            </LinearLayout>
+                android:textSize="20sp"
+                android:text="70"
+                android:id="@+id/alarm_min_temp"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:text=" - "/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:text="80"
+                android:id="@+id/alarm_max_temp"/>
         </LinearLayout>
-        <ImageButton
-            android:layout_height="fill_parent"
-            android:layout_width="wrap_content"
-            android:contentDescription="Edit Alarm"
-            android:src="@drawable/edit"
-            android:id="@+id/edit_alarm"
-            style="?android:attr/borderlessButtonStyle"
-            android:layout_weight="1"/>
-        <ImageButton
-            android:layout_height="fill_parent"
-            android:layout_width="wrap_content"
-            android:contentDescription="Delete Alarm"
-            android:src="@drawable/remove"
-            android:id="@+id/delete_alarm"
-            style="?android:attr/borderlessButtonStyle"
-            android:layout_weight="1"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            android:id="@+id/alarm_time_display">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:text="From "/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:text="-"
+                android:id="@+id/alarm_start_time"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:text=" to "/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:text="-"
+                android:id="@+id/alarm_stop_time"/>
+        </LinearLayout>
+    </LinearLayout>
+    <ImageButton
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:layout_toLeftOf="@+id/delete_alarm"
+        android:layout_centerVertical="true"
+        android:contentDescription="Edit Alarm"
+        android:src="@drawable/edit"
+        android:id="@+id/edit_alarm"
+        android:layout_weight="1"/>
+    <ImageButton
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_centerVertical="true"
+        android:contentDescription="Delete Alarm"
+        android:src="@drawable/remove"
+        android:id="@+id/delete_alarm"
+        android:layout_weight="1"/>
 
-    </TableRow>
-</TableLayout>
+</RelativeLayout>

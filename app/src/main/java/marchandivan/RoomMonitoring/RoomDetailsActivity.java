@@ -158,7 +158,7 @@ public class RoomDetailsActivity extends AppCompatActivity {
     }*/
 
     public void addAlarm(final View view) {
-        AlarmDialogBuilder builder = new AlarmDialogBuilder(this, getLayoutInflater());
+        AlarmDialogBuilder builder = new AlarmDialogBuilder(this);
 
         // Set post save callback to update display
         builder.setPostSaveCallback(new Runnable() {

@@ -16,7 +16,8 @@
                 android:layout_height="wrap_content"
                 android:text="Enable Alarm"
                 android:textSize="20sp"
-                android:id="@+id/alarm_on_off" />
+                android:id="@+id/alarm_on_off"
+                android:checked="true"/>
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

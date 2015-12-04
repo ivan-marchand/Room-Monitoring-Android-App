@@ -24,24 +24,18 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_toLeftOf="@+id/remove_room"
-            android:padding="@dimen/activity_vertical_margin"
-            android:cropToPadding="true"
             android:layout_centerVertical="true"
             android:id="@+id/room_details_button"
             android:src="@drawable/magnifying_glass"
-            android:contentDescription="Room Details"
-            android:background="@null" />
+            android:contentDescription="Room Details"/>
         <ImageButton
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentRight="true"
-            android:padding="@dimen/activity_vertical_margin"
-            android:cropToPadding="true"
             android:layout_centerVertical="true"
             android:id="@+id/remove_room"
             android:src="@drawable/remove"
-            android:contentDescription="Remove Room"
-            android:background="@null"/>
+            android:contentDescription="Remove Room"/>
     </RelativeLayout>
     <TableLayout
         android:layout_width="match_parent"

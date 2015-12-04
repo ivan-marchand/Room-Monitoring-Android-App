@@ -36,7 +36,6 @@ public class AlarmDisplayFragment extends Fragment {
     private String mRoom;
     private boolean mEvenRow;
     private AlarmConfig.Alarm mAlarm;
-    private LayoutInflater mInflater;
     private Fragment mFragment;
 
     /**
@@ -90,7 +89,7 @@ public class AlarmDisplayFragment extends Fragment {
         editAlarm.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                AlarmDialogBuilder builder = new AlarmDialogBuilder(v.getContext(), mInflater);
+                AlarmDialogBuilder builder = new AlarmDialogBuilder(v.getContext());
 
                 // Set post save callback to update display
                 builder.setPostSaveCallback(new Runnable() {
@@ -147,6 +146,7 @@ public class AlarmDisplayFragment extends Fragment {
             mRoom = getArguments().getString(ARG_ROOM);
             long alarmId = getArguments().getLong(ARG_ALARM_ID);
             mEvenRow = getArguments().getBoolean(EVEN_ROW);
+
             // Get alarm config
             AlarmConfig alarmConfig = new AlarmConfig(this.getActivity(), mRoom);
             mAlarm = alarmConfig.read(alarmId);
@@ -162,7 +162,6 @@ public class AlarmDisplayFragment extends Fragment {
         if (!mEvenRow) {
             view.setBackgroundColor(getResources().getColor(R.color.light_gray));
         }
-        mInflater = inflater;
 
         // Update display
         if (mAlarm != null) {

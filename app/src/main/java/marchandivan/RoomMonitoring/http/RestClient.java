@@ -4,9 +4,7 @@ package marchandivan.RoomMonitoring.http;
  * Created by imarchand on 6/28/2015.
  */
 
-import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
@@ -24,6 +22,9 @@ import java.net.URL;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLHandshakeException;
+
+import marchandivan.RoomMonitoring.MainActivity;
+import marchandivan.RoomMonitoring.dialog.SslConfirmDialogBuilder;
 
 public class RestClient {
     private String mServerHost;
@@ -79,6 +80,7 @@ public class RestClient {
         } catch (SSLHandshakeException e) {
             Log.d("RestClient", "Error " + e.toString());
             if (mShowSslConfirmDialog) {
+                mShowSslConfirmDialog = false;
                 showSslConfirmDialog();
             }
         } catch (Exception e) {
@@ -121,18 +123,8 @@ public class RestClient {
         mUiHandler.post(new Runnable() {
             @Override
             public void run() {
-                mShowSslConfirmDialog = false;
-                AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
-                builder.setTitle("SSL certificate not verified");
-                builder.setPositiveButton("Accept", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        SSLTrustManager.SaveCertificate(false);
-                        mShowSslConfirmDialog = true;
-                    }
-                });
-                builder.setNegativeButton("Reject", null);
-                builder.create().show();
+                SslConfirmDialogBuilder builder = new SslConfirmDialogBuilder(mContext);
+                builder.create(mServerHost, mServerPort);
             }
         });
     }

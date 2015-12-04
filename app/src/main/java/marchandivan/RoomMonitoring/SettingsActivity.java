@@ -94,6 +94,7 @@ public class SettingsActivity extends PreferenceActivity {
         // Add 'alarm' preferences, and a corresponding header.
         addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_alarm);
         bindPreferenceSummaryToValue(findPreference("alarm_ringtone"));
+        bindPreferenceSummaryToValue(findPreference("alarm_silence_after"));
 
     }
 
@@ -238,6 +239,7 @@ public class SettingsActivity extends PreferenceActivity {
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
+
             addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_alarm);
 
             // Bind the summaries of EditText/List/Dialog/Ringtone preferences
