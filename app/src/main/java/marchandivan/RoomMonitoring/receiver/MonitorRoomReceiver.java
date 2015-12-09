@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
+import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
@@ -147,6 +148,8 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
                             roomConfig.updateAlarm();
                             Log.d("MonitorRoom", "Firing alarm!");
                             Intent alarmIntent = new Intent(context, AlarmActivity.class);
+                            Bundle args = new Bundle();
+                            alarmIntent.putExtra("room", roomConfig.mRoomName);
                             alarmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             context.startActivity(alarmIntent);
 

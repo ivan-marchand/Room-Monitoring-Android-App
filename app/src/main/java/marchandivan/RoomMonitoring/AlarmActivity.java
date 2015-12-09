@@ -2,6 +2,7 @@ package marchandivan.RoomMonitoring;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.media.Ringtone;
@@ -9,6 +10,8 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.View;
@@ -16,17 +19,24 @@ import android.view.MenuItem;
 import android.support.v4.app.NavUtils;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.TextView;
+
+import org.json.JSONException;
 
 
-/**
- * An example full-screen activity that shows and hides the system UI (i.e.
- * status bar and navigation/system bar) with user interaction.
- *
- * @see SystemUiHider
- */
+import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
+
+
 public class AlarmActivity extends Activity {
     private Ringtone mRingtone;
+    private Boolean mAlarmVibrate = false;
     private Integer mSilenceAfter;
+    private String mRoomName = "";
+    private Float mTemperature = new Float(0);
+    private Integer mMinTemperature = 0;
+    private Integer mMaxTemperature = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,6 +50,30 @@ public class AlarmActivity extends Activity {
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
         window.addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        // Get room name
+        mRoomName = getIntent().getExtras().getString("room");
+        TextView roomTextView = (TextView)findViewById(R.id.temperature_alert_room);
+        char[] roomCapitalized = mRoomName.toCharArray();
+        roomCapitalized[0] = Character.toUpperCase(roomCapitalized[0]);
+        roomTextView.setText(new String(roomCapitalized));
+
+        // Update Temperature display
+        try {
+            mTemperature = Float.parseFloat(MonitorRoomReceiver.GetRooms().get(mRoomName).getString("temperature"));
+            TextView temperatureTextView = (TextView)findViewById(R.id.temperature_alert_temperature);
+            temperatureTextView.setText(String.format("%.1f F", mTemperature));
+        } catch (JSONException e) {
+            // Ignore
+        }
+
+        // Update background color and alert icon
+        if (mTemperature > mMaxTemperature) {
+            FrameLayout alarmScreen = (FrameLayout)findViewById(R.id.alarm_screen);
+            alarmScreen.setBackgroundColor(getResources().getColor(R.color.orange_red));
+            ImageView alertIcon = (ImageView)findViewById(R.id.temperature_alert_icon);
+            alertIcon.setImageResource(R.drawable.hot_64);
+        }
     }
 
     @Override
@@ -51,6 +85,18 @@ public class AlarmActivity extends Activity {
 
         // Play ring tone
         this.playRingtone();
+
+        // Silence after ?
+        if (mSilenceAfter != 0) {
+            final Runnable stopAlarm = new Runnable() {
+                @Override
+                public void run() {
+                    stopRingtone();
+                }
+            };
+            Handler handler = new Handler();
+            handler.postDelayed(stopAlarm, mSilenceAfter * 60 * 1000);
+        }
     }
 
     @Override
@@ -59,6 +105,7 @@ public class AlarmActivity extends Activity {
 
         // Stop ring tone
         this.stopRingtone();
+
     }
 
     /**
@@ -91,9 +138,17 @@ public class AlarmActivity extends Activity {
     }
 
     public void playRingtone() {
+        // Play ringtone if defined
         if (mRingtone != null) {
             Log.d("Alarm", "Playing !");
             mRingtone.play();
+        }
+
+        // Make the phone vibrate
+        if (mAlarmVibrate) {
+            Vibrator vibrator = (Vibrator) this.getSystemService(Context.VIBRATOR_SERVICE);
+            long[] pattern = {500, 500};
+            vibrator.vibrate(pattern, 0);
         }
     }
 
@@ -103,9 +158,13 @@ public class AlarmActivity extends Activity {
     }
 
     public void stopRingtone() {
+        // Stop ringtone
         if (mRingtone != null && mRingtone.isPlaying()) {
             mRingtone.stop();
         }
+        // Stop vibration
+        Vibrator vibrator = (Vibrator) this.getSystemService(Context.VIBRATOR_SERVICE);
+        vibrator.cancel();
     }
 
     public void configure() {
@@ -121,5 +180,11 @@ public class AlarmActivity extends Activity {
             mRingtone.setStreamType(AudioManager.STREAM_ALARM);
             Log.d("Alarm", ringtoneUri.toString());
         }
+
+        // Alarm vibrate ?
+        mAlarmVibrate = sharedPreferences.getBoolean("alarm_vibrate", false);
+
+        // Silence after
+        mSilenceAfter = Integer.parseInt(sharedPreferences.getString("alarm_silence_after", "0"));
     }
 }

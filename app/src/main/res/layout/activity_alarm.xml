@@ -1,15 +1,62 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
-    android:layout_height="match_parent" android:background="#0099cc"
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/alarm_screen"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/pacific_blue"
     tools:context="marchandivan.RoomMonitoring.AlarmActivity">
 
-    <!-- The primary full-screen view. This can be replaced with whatever view
-         is needed to present your content, e.g. VideoView, SurfaceView,
-         TextureView, etc. -->
-    <TextView android:id="@+id/fullscreen_content" android:layout_width="match_parent"
-        android:layout_height="match_parent" android:keepScreenOn="true" android:textColor="#33b5e5"
-        android:textStyle="bold" android:textSize="50sp" android:gravity="center"
-        android:text="ROOM\nTEMPERATURE\nALERT" />
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="@dimen/activity_horizontal_margin">
+        <TextView
+            android:id="@+id/temperature_alert_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textSize="30sp"
+            android:text="@string/temperature_alert_header" />
+
+        <TextView
+            android:id="@+id/temperature_alert_temperature"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_below="@+id/temperature_alert_header"
+            android:textStyle="bold"
+            android:textSize="100sp"
+            android:text="@string/temperature_place_holder" />
+
+        <TextView
+            android:id="@+id/temperature_alert_room_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/temperature_alert_temperature"
+            android:textStyle="bold"
+            android:textSize="30sp"
+            android:text="@string/temperature_alert_room_header" />
+
+        <TextView
+            android:id="@+id/temperature_alert_room"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/temperature_alert_room_header"
+            android:gravity="center_horizontal"
+            android:textStyle="bold"
+            android:textSize="70sp"
+            android:text="@string/room_place_holder" />
+
+        <ImageView
+            android:id="@+id/temperature_alert_icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:layout_below="@id/temperature_alert_room"
+            android:src="@drawable/cold_64"/>
+    </RelativeLayout>
 
     <!-- This FrameLayout insets its children based on system windows using
          android:fitsSystemWindows. -->
@@ -28,5 +75,7 @@
 
         </LinearLayout>
     </FrameLayout>
+
+
 
 </FrameLayout>

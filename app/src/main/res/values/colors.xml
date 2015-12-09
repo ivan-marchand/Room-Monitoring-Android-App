@@ -9,5 +9,8 @@
     <color name="light_blue">#ADD8E6</color>
     <color name="red">#FF0000</color>
     <color name="green">#00FF00</color>
+    <color name="pacific_blue">#0099cc</color>
+    <color name="summer_sky">#33b5e5</color>
+    <color name="orange_red">#FF4500</color>
 
 </resources>

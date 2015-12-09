@@ -21,4 +21,8 @@
     <string name="not_after">Valid until %s</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
+    <string name="temperature_alert_header">Temperature Alert</string>
+    <string name="temperature_alert_room_header">Room</string>
+    <string name="temperature_place_holder">-.- F</string>
+    <string name="room_place_holder">------</string>
 </resources>
