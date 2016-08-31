@@ -10,6 +10,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Base64;
 import android.util.Log;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -17,13 +18,13 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLHandshakeException;
 
-import marchandivan.RoomMonitoring.MainActivity;
 import marchandivan.RoomMonitoring.dialog.SslConfirmDialogBuilder;
 
 public class RestClient {
@@ -31,7 +32,9 @@ public class RestClient {
     private String mServerPort;
     private String mServerUser;
     private String mServerPassword;
+    private boolean mUseHttps;
     private Context mContext;
+    private String mUrlBase;
     private static boolean mShowSslConfirmDialog = true;
     private Handler mUiHandler = new Handler(Looper.getMainLooper());
 
@@ -44,6 +47,8 @@ public class RestClient {
         mServerPort = sharedPreferences.getString("server_port", "");
         mServerUser = sharedPreferences.getString("server_user", "");
         mServerPassword = sharedPreferences.getString("server_password", "");
+        mUseHttps = sharedPreferences.getBoolean("use_https", false);
+        mUrlBase = (mUseHttps ? "https://" : "http://") + mServerHost + ":" + mServerPort;
     }
 
     public String readJSONFeed(String urlString) {
@@ -54,8 +59,15 @@ public class RestClient {
 
             // Tell the URLConnection to use a custom SocketFactory from our SSLContext
             URL url = new URL(urlString);
-            HttpsURLConnection urlConnection = (HttpsURLConnection)url.openConnection();
-            urlConnection.setSSLSocketFactory(SSLTrustManager.instance(mContext, mServerHost, mServerPort).getSSLSocketFactory());
+            Log.d("RestClient", urlString);
+            HttpURLConnection urlConnection;
+            if (!mUseHttps) {
+                urlConnection = (HttpURLConnection) url.openConnection();
+            } else {
+                HttpsURLConnection httpsUrlConnection = (HttpsURLConnection) url.openConnection();
+                httpsUrlConnection.setSSLSocketFactory(SSLTrustManager.instance(mContext, mServerHost, mServerPort).getSSLSocketFactory());
+                urlConnection = httpsUrlConnection;
+            }
             urlConnection.setRequestProperty("Authorization", "basic " + Base64.encodeToString((mServerUser + ":" + mServerPassword).getBytes(), Base64.NO_WRAP));
 
             // Get response status code
@@ -70,7 +82,7 @@ public class RestClient {
                 }
                 inputStream.close();
             } else {
-                Log.d("RestClient", "Failed to download file");
+                Log.d("RestClient", "Failed to retrieve data");
             }
             urlConnection.disconnect();
 
@@ -95,7 +107,7 @@ public class RestClient {
         JSONObject json = new JSONObject();
         if (!mServerHost.isEmpty() && !mServerPort.isEmpty()) {
             try {
-                String url = "https://" + mServerHost + ":" + mServerPort + path;
+                String url = mUrlBase + path;
                 json = new JSONObject(readJSONFeed(url));
             } catch (Exception e) {
                 e.printStackTrace();
@@ -110,7 +122,7 @@ public class RestClient {
         JSONArray json = new JSONArray();
         if (!mServerHost.isEmpty() && !mServerPort.isEmpty()) {
             try {
-                String url = "https://" + mServerHost + ":" + mServerPort + path;
+                String url = mUrlBase + path;
                 json = new JSONArray(readJSONFeed(url));
             } catch (Exception e) {
                 Log.d("RestClient", "Error " + e.getMessage());
@@ -123,8 +135,14 @@ public class RestClient {
         mUiHandler.post(new Runnable() {
             @Override
             public void run() {
-                SslConfirmDialogBuilder builder = new SslConfirmDialogBuilder(mContext);
-                builder.create(mServerHost, mServerPort);
+                try {
+                    SslConfirmDialogBuilder builder = new SslConfirmDialogBuilder(mContext);
+                    if (builder != null) {
+                        builder.create(mServerHost, mServerPort);
+                    }
+                } catch (Exception e) {
+
+                }
             }
         });
     }

@@ -26,6 +26,9 @@ import android.widget.TextView;
 import org.json.JSONException;
 
 
+import java.util.HashMap;
+
+import marchandivan.RoomMonitoring.db.RoomConfig;
 import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
 
 
@@ -53,14 +56,17 @@ public class AlarmActivity extends Activity {
 
         // Get room name
         mRoomName = getIntent().getExtras().getString("room");
+        mMaxTemperature = getIntent().getExtras().getInt("max_temperature");
+        mMinTemperature = getIntent().getExtras().getInt("min_temperature");
         TextView roomTextView = (TextView)findViewById(R.id.temperature_alert_room);
         char[] roomCapitalized = mRoomName.toCharArray();
         roomCapitalized[0] = Character.toUpperCase(roomCapitalized[0]);
         roomTextView.setText(new String(roomCapitalized));
 
         // Update Temperature display
+        HashMap<String, RoomConfig> roomConfigs = RoomConfig.GetMap(this);
         try {
-            mTemperature = Float.parseFloat(MonitorRoomReceiver.GetRooms().get(mRoomName).getString("temperature"));
+            mTemperature = Float.parseFloat(roomConfigs.get(mRoomName).mData.getString("temperature"));
             TextView temperatureTextView = (TextView)findViewById(R.id.temperature_alert_temperature);
             temperatureTextView.setText(String.format("%.1f F", mTemperature));
         } catch (JSONException e) {
@@ -175,7 +181,7 @@ public class AlarmActivity extends Activity {
         // Get alarm Ringtone
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         Uri ringtoneUri = Uri.parse(sharedPreferences.getString("alarm_ringtone", ""));
-        if (ringtoneUri != null) {
+        if (ringtoneUri != null && mRingtone != null) {
             mRingtone = RingtoneManager.getRingtone(this, ringtoneUri);
             mRingtone.setStreamType(AudioManager.STREAM_ALARM);
             Log.d("Alarm", ringtoneUri.toString());

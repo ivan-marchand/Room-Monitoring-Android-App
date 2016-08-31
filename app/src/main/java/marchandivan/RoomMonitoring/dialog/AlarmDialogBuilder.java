@@ -57,21 +57,11 @@ public class AlarmDialogBuilder {
         final AlarmConfig alarmConfig = new AlarmConfig(mContext, room);
         final RoomConfig roomConfig = new RoomConfig(mContext, room);
 
-        // Set time pickers format
-        TimePicker startTime = (TimePicker) dialogView.findViewById(R.id.alarm_start_time);
-        startTime.setIs24HourView(true);
-        TimePicker stopTime = (TimePicker) dialogView.findViewById(R.id.alarm_stop_time);
-        stopTime.setIs24HourView(true);
-
         // Alarm already exists ?
         Switch activeAnytimeSwitch = (Switch) dialogView.findViewById(R.id.alarm_active_anytime);
         final LinearLayout timeSettings = (LinearLayout) dialogView.findViewById(R.id.alarm_time_settings);
         if(roomConfig.read() && alarm.mId != 0)
         {
-            // Alarm On/Off
-            Switch alarmOnOff = (Switch) dialogView.findViewById(R.id.alarm_on_off);
-            alarmOnOff.setChecked(alarm.mAlarmActive);
-
             // Min/Max temp
             TextView minTemp = (TextView) dialogView.findViewById(R.id.alarm_min_temp);
             minTemp.setText(String.valueOf(alarm.mMinTemp));
@@ -84,6 +74,8 @@ public class AlarmDialogBuilder {
             timeSettings.setVisibility(activeAnyTime ? View.GONE : View.VISIBLE);
 
             // Start/Stop time
+            TimePicker startTime = (TimePicker) dialogView.findViewById(R.id.alarm_start_time);
+            TimePicker stopTime = (TimePicker) dialogView.findViewById(R.id.alarm_stop_time);
             startTime.setCurrentHour(alarm.mStartTime.first);
             startTime.setCurrentMinute(alarm.mStartTime.second);
             stopTime.setCurrentHour(alarm.mStopTime.first);
@@ -106,16 +98,17 @@ public class AlarmDialogBuilder {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
 
-                        // Alarm On/Off
-                        Switch alarmOnOff = (Switch) dialogView.findViewById(R.id.alarm_on_off);
-                        alarm.mAlarmActive = alarmOnOff.isChecked();
+                        // Activate alarm
+                        alarm.mAlarmActive = true;
 
                         // Min/Max temp
                         TextView minTemp = (TextView) dialogView.findViewById(R.id.alarm_min_temp);
                         try {
                             alarm.mMinTemp = Integer.parseInt(minTemp.getText().toString());
                         } catch (NumberFormatException e) {
-                            Toast.makeText(dialogView.getContext(), "Min Temperature value missing or invalid", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(dialogView.getContext(),
+                                    dialogView.getContext().getString(R.string.temperature_value_missing_or_invalid, dialogView.getContext().getString(R.string.min)),
+                                    Toast.LENGTH_SHORT).show();
                             return;
                         }
 
@@ -123,13 +116,17 @@ public class AlarmDialogBuilder {
                         try {
                             alarm.mMaxTemp = Integer.parseInt(maxTemp.getText().toString());
                         } catch (NumberFormatException e) {
-                            Toast.makeText(dialogView.getContext(), "Max Temperature value missing or invalid", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(dialogView.getContext(),
+                                    dialogView.getContext().getString(R.string.temperature_value_missing_or_invalid, dialogView.getContext().getString(R.string.max)),
+                                    Toast.LENGTH_SHORT).show();
                             return;
                         }
 
                         // Check value consistency
                         if (alarm.mMaxTemp <= alarm.mMinTemp) {
-                            Toast.makeText(dialogView.getContext(), "Max Temperature value must be higher than Min temperature value", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(dialogView.getContext(),
+                                    dialogView.getContext().getString(R.string.max_temperature_must_be_higher_than_min_temperature),
+                                    Toast.LENGTH_SHORT).show();
                             return;
                         }
 
@@ -146,7 +143,9 @@ public class AlarmDialogBuilder {
                                 alarm.mStartTime = new Pair<Integer, Integer>(startTime.getCurrentHour(), startTime.getCurrentMinute());
                                 alarm.mStopTime = new Pair<Integer, Integer>(stopTime.getCurrentHour(), stopTime.getCurrentMinute());
                             } else {
-                                Toast.makeText(dialogView.getContext(), "Start and Stop time has to be different", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(dialogView.getContext(),
+                                        dialogView.getContext().getString(R.string.start_and_stop_time_has_to_be_different),
+                                        Toast.LENGTH_SHORT).show();
                             }
                         }
 
@@ -157,6 +156,11 @@ public class AlarmDialogBuilder {
                         if (mPostSaveCallback != null) {
                             mPostSaveCallback.run();
                         }
+
+                        // Alarm
+                        Toast.makeText(dialogView.getContext(),
+                                dialogView.getContext().getString(R.string.alarm_is_onoff, dialogView.getContext().getString(R.string.on)),
+                                Toast.LENGTH_SHORT).show();
                     }
                 }
 

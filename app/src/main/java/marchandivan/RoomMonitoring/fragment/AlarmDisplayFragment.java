@@ -2,6 +2,7 @@ package marchandivan.RoomMonitoring.fragment;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.graphics.SweepGradient;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
@@ -11,10 +12,14 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.ToggleButton;
 
 import marchandivan.RoomMonitoring.R;
 import marchandivan.RoomMonitoring.db.AlarmConfig;
@@ -67,8 +72,20 @@ public class AlarmDisplayFragment extends Fragment {
         alarmMaxTemp.setText(String.valueOf(mAlarm.mMaxTemp));
 
         // Display alarm on/off icon
-        ImageView alarmIcon = (ImageView)view.findViewById(R.id.alarm_icon);
-        alarmIcon.setImageResource(mAlarm.mAlarmActive ? R.drawable.alarm : R.drawable.alarm_off);
+        final Switch alarmEnabled = (Switch)view.findViewById(R.id.alarm_enabled);
+        alarmEnabled.setChecked(mAlarm.mAlarmActive);
+        alarmEnabled.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                // Update alarm config
+                AlarmConfig alarmConfig = new AlarmConfig(buttonView.getContext(), mRoom);
+                mAlarm.mAlarmActive = isChecked;
+                alarmConfig.update(mAlarm);
+                Toast.makeText(buttonView.getContext(),
+                        buttonView.getContext().getString(R.string.alarm_is_onoff, buttonView.getContext().getString(isChecked ? R.string.on : R.string.off)),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
 
         // Display time range
         if(!mAlarm.isActiveAnyTime())

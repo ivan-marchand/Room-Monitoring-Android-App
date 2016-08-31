@@ -80,6 +80,9 @@ public class SslConfirmDialogBuilder {
             serialNumberText.setText(mContext.getString(R.string.serial_number, certInfo.getSerialNumber()));
             notBeforeText.setText(mContext.getString(R.string.not_before, certInfo.getNotBefore().toLocaleString()));
             notAfterText.setText(mContext.getString(R.string.not_after, certInfo.getNotAfter().toLocaleString()));
+        } else {
+            // No certificate found
+            return null;
         }
         // Accept, reject buttons
         mBuilder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {

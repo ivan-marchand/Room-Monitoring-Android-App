@@ -1,26 +1,22 @@
 package marchandivan.RoomMonitoring;
 
 import android.app.AlertDialog;
-import android.content.DialogInterface;
-import android.os.Handler;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.Pair;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
-import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.TimePicker;
-import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import marchandivan.RoomMonitoring.db.AlarmConfig;
 import marchandivan.RoomMonitoring.db.RoomConfig;
@@ -30,11 +26,8 @@ import marchandivan.RoomMonitoring.fragment.DeviceFragment;
 import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
 
 public class RoomDetailsActivity extends AppCompatActivity {
-    private Handler mHandler;
     private String mRoom;
-
-    // Display refresh rate (in ms)
-    private int mDisplayRefreshInterval = 30 * 1000; // Every 30s
+    private Boolean mAlarmActived = false;
 
     private void updateDisplay() {
         try {
@@ -42,18 +35,11 @@ public class RoomDetailsActivity extends AppCompatActivity {
             FragmentManager fragmentManager = getSupportFragmentManager();
             FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
             // Update temperature, humidity display
-            if (MonitorRoomReceiver.GetRooms().containsKey(mRoom)) {
-                JSONObject room = MonitorRoomReceiver.GetRooms().get(mRoom);
-                if (room.has("temperature")) {
-                    // Temperature
-                    TextView temperatureView = (TextView) this.findViewById(R.id.temperature);
-                    temperatureView.setText(String.format("%.1f F", Float.parseFloat(room.getString("temperature"))));
-                }
-                if (room.has("humidity")) {
-                    // Humidity
-                    TextView humidityView = (TextView) this.findViewById(R.id.humidity);
-                    humidityView.setText(String.format("%.1f %%", Float.parseFloat(room.getString("humidity"))));
-                }
+            HashMap<String, RoomConfig> roomConfigs = RoomConfig.GetMap(this);
+            Log.d("RoomDetailsActivity", roomConfigs.toString());
+            if (roomConfigs.containsKey(mRoom)) {
+                JSONObject room = roomConfigs.get(mRoom).mData;
+                Log.d("RoomDetailsActivity", room.toString());
 
                 // Display device
                 JSONArray devices = room.getJSONArray("devices");
@@ -80,18 +66,25 @@ public class RoomDetailsActivity extends AppCompatActivity {
             }
 
             // Alarm settings
-            RoomConfig roomConfig = new RoomConfig(this, mRoom);
-            if (roomConfig.read()) {
-                AlarmConfig alarmConfig = new AlarmConfig(this, mRoom);
-                ArrayList<AlarmConfig.Alarm> alarms = alarmConfig.read();
-                LinearLayout alarmDisplayContainer = (LinearLayout)this.findViewById(R.id.alarm_display);
-                alarmDisplayContainer.removeAllViews();
-                int i = 0;
-                for (AlarmConfig.Alarm alarm : alarms) {
-                    AlarmDisplayFragment alarmDisplay = AlarmDisplayFragment.newInstance(mRoom, alarm.mId, i++ % 2 == 0);
-                    // Add fragment to view
-                    fragmentTransaction.add(R.id.alarm_display, alarmDisplay);
+            LinearLayout alarmDisplay = (LinearLayout)findViewById(R.id.alarm_display);
+            if (mAlarmActived) {
+                alarmDisplay.setVisibility(View.VISIBLE);
+                RoomConfig roomConfig = new RoomConfig(this, mRoom);
+                if (roomConfig.read()) {
+                    AlarmConfig alarmConfig = new AlarmConfig(this, mRoom);
+                    ArrayList<AlarmConfig.Alarm> alarms = alarmConfig.read();
+                    LinearLayout alarmDisplayContainer = (LinearLayout) this.findViewById(R.id.alarm_list);
+                    alarmDisplayContainer.removeAllViews();
+                    int i = 0;
+                    for (AlarmConfig.Alarm alarm : alarms) {
+                        AlarmDisplayFragment alarmDisplayFragment = AlarmDisplayFragment.newInstance(mRoom, alarm.mId, i++ % 2 == 0);
+                        // Add fragment to view
+                        fragmentTransaction.add(R.id.alarm_list, alarmDisplayFragment);
+                    }
                 }
+            }
+            else {
+                alarmDisplay.setVisibility(View.GONE);
             }
             // Something to commit?
             if (!fragmentTransaction.isEmpty()) {
@@ -107,9 +100,6 @@ public class RoomDetailsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_room_details);
 
-        // Init the callback handler
-        mHandler = new Handler();
-
         // Get room name
         Bundle args = getIntent().getExtras();
         mRoom = args.getString("room");
@@ -120,19 +110,27 @@ public class RoomDetailsActivity extends AppCompatActivity {
         roomCapitalized[0] = Character.toUpperCase(roomCapitalized[0]);
         roomName.setText(new String(roomCapitalized));
 
-        // Start display refresh
-        mDisplayRefresher.run();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
 
-        // Get current room temp
-        MonitorRoomReceiver.Update(this);
+        // Temperature alarm activated
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        mAlarmActived = sharedPreferences.getBoolean("temperature_alarm", false);
 
         // Update the display
         updateDisplay();
+
+        // Register temp/humidity views
+        registerViews();
+    }
+
+    @Override
+    protected void onDestroy() {
+        unRegisterViews();
+        super.onDestroy();
     }
 
     /*@Override
@@ -175,20 +173,16 @@ public class RoomDetailsActivity extends AppCompatActivity {
 
     }
 
-    private Runnable mDisplayRefresher = new Runnable() {
-        @Override
-        public void run() {
-            try {
-                if (hasWindowFocus()) {
-                    updateDisplay();
-                }
-            } catch (Exception e) {
+    private void registerViews() {
+        // Temperature
+        TextView temperatureView = (TextView)this.findViewById(R.id.temperature);
+        // Humidity
+        TextView humidityView = (TextView)this.findViewById(R.id.humidity);
+        MonitorRoomReceiver.Register(mRoom, "detailed_view", temperatureView, humidityView);
+    }
 
-            } finally {
-                mHandler.removeCallbacks(this);
-                mHandler.postDelayed(this, MonitorRoomReceiver.GetRooms().isEmpty() ? 1000 : mDisplayRefreshInterval);
-            }
-        }
-    };
+    private void unRegisterViews() {
+        MonitorRoomReceiver.Unregister(mRoom, "detailed_view");
+    }
 
 }

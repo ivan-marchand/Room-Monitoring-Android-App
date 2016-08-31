@@ -10,17 +10,25 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.util.Pair;
+import android.widget.TextView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import marchandivan.RoomMonitoring.AlarmActivity;
+import marchandivan.RoomMonitoring.R;
 import marchandivan.RoomMonitoring.db.AlarmConfig;
 import marchandivan.RoomMonitoring.db.RoomConfig;
 import marchandivan.RoomMonitoring.http.RestClient;
@@ -33,11 +41,18 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
     // Quiet period during which the alarm won't be fired after an alert
     static final long mQuietPeriod = 30 * 60 * 1000; // 30 minutes
 
+    // Expiration time after which the temperature measure is not valid anymore
+    static final long mTempMeasureExpirationTime = 10 * 60 * 1000; // 10 minutes
+
     // true if alarm in activated
     private boolean mAlarmActivated = false;
 
-    // Map containing the last Temperature/Humidity values retrieved from server
-    static HashMap<String, JSONObject> mRoomMap = new HashMap<String, JSONObject>();
+    // TextView to update
+    static private HashMap<String, HashMap<String, Pair<TextView, TextView> > > mTextViewListeners = new HashMap<String, HashMap<String, Pair<TextView, TextView> > >();
+
+    // Callbacks
+    static private HashMap<String, Runnable> mPreUpdateCallbacks = new HashMap<String, Runnable>();
+    static private HashMap<String, Runnable> mPostUpdateCallbacks = new HashMap<String, Runnable>();
 
     // Rest client instance, used to access remote server
     private RestClient mRestClient;
@@ -95,30 +110,70 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
         }
 
         protected JSONArray doInBackground(Void... voids) {
+            // Call callbacks
+            for (Runnable callback : mPreUpdateCallbacks.values()) {
+                callback.run();
+            }
+
             return mRestClient.getArray("/api/v1/get/rooms");
         }
 
         protected void onPostExecute(JSONArray result) {
             try {
                 long lastUpdate = System.currentTimeMillis();
+                HashSet<String> newRooms = new HashSet<String>();
                 for (int i = 0 ; i < result.length() ; i++) {
                     JSONObject room = result.getJSONObject(i);
                     String roomName = room.getString("room");
-                    mRoomMap.put(roomName, room);
+                    newRooms.add(roomName);
+
+                    // Update Db
                     HashMap<String, RoomConfig> roomConfigs = RoomConfig.GetMap(mContext);
+                    Log.d("UpdateRoom", roomName);
                     if (roomConfigs.containsKey(roomName)) {
-                        Log.d("UpdateRoom", roomName);
-                        roomConfigs.get(roomName).update(lastUpdate);
+                        roomConfigs.get(roomName).update(lastUpdate, room);
+                    } else {
+                        RoomConfig roomConfig = new RoomConfig(mContext, roomName, lastUpdate, room);
+                        roomConfig.add();
                     }
+                    // Remove room from cache if expired
+                    for (RoomConfig roomConfig: roomConfigs.values()) {
+                        if (!newRooms.contains(roomConfig.mRoomName) && roomConfig.hasExpired()) {
+                            roomConfig.delete();
+                        }
+                    }
+                    // Update registered views
+                    Float temperature = room.has("temperature") ? Float.parseFloat(room.getString("temperature")) : null;
+                    Float humidity = room.has("humidity") ? Float.parseFloat(room.getString("humidity")) : null;
+                    UpdateViews(roomName, temperature, humidity);
                 }
+
+                // Call callbacks
+                for (Runnable callback : mPostUpdateCallbacks.values()) {
+                    callback.run();
+                }
+
             } catch (Exception e) {
                 Log.d("UpdateRoom", "Error " + e.toString());
             }
+            // Check alarm
+            checkAlarm(mContext);
         }
     }
 
-    static public HashMap<String, JSONObject> GetRooms() {
-        return mRoomMap;
+    private static void UpdateViews(String room, Float temperature, Float humidity) {
+        if (mTextViewListeners.containsKey(room)) {
+            for(Map.Entry<String, Pair<TextView, TextView> > roomViews : mTextViewListeners.get(room).entrySet()) {
+                if (temperature != null) {
+                    // Temperature
+                    roomViews.getValue().first.setText(String.format("%.1f F", temperature));
+                }
+                if (humidity != null) {
+                    // Humidity
+                    roomViews.getValue().second.setText(String.format("%.1f %%", humidity));
+                }
+            }
+        }
     }
 
     public void update(Context context) {
@@ -132,24 +187,30 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
 
+        this.configure(context);
+
+        // Update Room Temperature
+        new Update(context).execute();
+
+    }
+
+    private void checkAlarm(Context context) {
         try {
-            this.configure(context);
-
-            // Update Room Temperature
-            new Update(context).execute();
-
             // Check min/max temp
             HashMap<String, RoomConfig> roomConfigs = RoomConfig.GetMap(context);
             for (RoomConfig roomConfig : roomConfigs.values()) {
                 AlarmConfig alarmConfig = new AlarmConfig(context, roomConfig.mRoomName);
-                if (mAlarmActivated && !inQuietPeriod(roomConfig)) {
+                if (mAlarmActivated && MeasureIsValid(roomConfig) && !inQuietPeriod(roomConfig)) {
                     for (AlarmConfig.Alarm alarm : alarmConfig.read()) {
-                        if (alarm.mAlarmActive && exceedThreshold(roomConfig.mRoomName, alarm)) {
+                        if (alarm.mAlarmActive && exceedThreshold(roomConfig, alarm)) {
                             roomConfig.updateAlarm();
                             Log.d("MonitorRoom", "Firing alarm!");
                             Intent alarmIntent = new Intent(context, AlarmActivity.class);
                             Bundle args = new Bundle();
+                            // Setup the alarm
                             alarmIntent.putExtra("room", roomConfig.mRoomName);
+                            alarmIntent.putExtra("max_temperature", alarm.mMaxTemp);
+                            alarmIntent.putExtra("min_temperature", alarm.mMinTemp);
                             alarmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             context.startActivity(alarmIntent);
 
@@ -168,11 +229,17 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
         return roomConfig.mLastAlarm + mQuietPeriod > System.currentTimeMillis();
     }
 
-    private boolean exceedThreshold(String roomName, AlarmConfig.Alarm alarm) throws JSONException {
+    static private boolean MeasureIsValid(RoomConfig roomConfig) {
+        long currentTime = System.currentTimeMillis();
+        // Measure expired?
+        return roomConfig.mLastUpdate + mTempMeasureExpirationTime > currentTime;
+    }
+
+    private boolean exceedThreshold(RoomConfig roomConfig, AlarmConfig.Alarm alarm) throws JSONException {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
         Integer nowMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE);
-        Float temperature = mRoomMap.containsKey(roomName) ? Float.parseFloat(mRoomMap.get(roomName).getString("temperature")) : null;
+        Float temperature = roomConfig.mData.has("temperature") ? Float.parseFloat(roomConfig.mData.getString("temperature")) : null;
         return isAlarmEnable(alarm, nowMinutes) && temperature != null && (temperature > alarm.mMaxTemp || temperature < alarm.mMinTemp);
     }
 
@@ -196,6 +263,59 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
 
         mAlarmActivated = sharedPreferences.getBoolean("temperature_alarm", false);
 
+    }
+
+
+    static public void Register(String room, String key, TextView tempTextView, TextView humidityTextView) {
+        try {
+
+            if (!mTextViewListeners.containsKey(room)) {
+                mTextViewListeners.put(room, new HashMap<String, Pair<TextView, TextView>>());
+            }
+            mTextViewListeners.get(room).put(key, new Pair<TextView, TextView>(tempTextView, humidityTextView));
+
+            // Update display
+            HashMap<String, RoomConfig> roomConfigHashMap = RoomConfig.GetMap(tempTextView.getContext());
+            if (roomConfigHashMap.containsKey(room)) {
+                RoomConfig roomConfig = roomConfigHashMap.get(room);
+                Float temperature = roomConfig.mData.has("temperature") ? Float.parseFloat(roomConfig.mData.getString("temperature")) : null;
+                Float humidity = roomConfig.mData.has("humidity") ? Float.parseFloat(roomConfig.mData.getString("humidity")) : null;
+                // Measure expired?
+                if (MeasureIsValid(roomConfig)) {
+                    UpdateViews(room, temperature, humidity);
+                }
+            }
+
+        }
+        catch (Exception e) {
+
+        }
+    }
+
+    static public void Unregister(String room, String key) {
+        if (mTextViewListeners.containsKey(room) &&  mTextViewListeners.get(room).containsKey(key)) {
+            mTextViewListeners.get(room).remove(key);
+        }
+    }
+
+    static public void AddPostUpdateCallback(String room, String key, Runnable callback) {
+        mPostUpdateCallbacks.put(room + "_" + key, callback);
+    }
+
+    static public void RemovePostUpdateCallback(String room, String key) {
+        if (mPostUpdateCallbacks.containsKey(room + "_" + key)) {
+            mPostUpdateCallbacks.remove(room + "_" + key);
+        }
+    }
+
+    static public void AddPreUpdateCallback(String room, String key, Runnable callback) {
+        mPreUpdateCallbacks.put(room + "_" + key, callback);
+    }
+
+    static public void RemovePreUpdateCallback(String room, String key) {
+        if (mPreUpdateCallbacks.containsKey(room + "_" + key)) {
+            mPreUpdateCallbacks.remove(room + "_" + key);
+        }
     }
 
 }

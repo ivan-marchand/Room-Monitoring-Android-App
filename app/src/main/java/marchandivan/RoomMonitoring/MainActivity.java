@@ -7,7 +7,6 @@ import android.support.v4.app.FragmentTransaction;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -17,10 +16,11 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
+import android.widget.Toast;
 
-import org.json.JSONObject;
-
+import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import marchandivan.RoomMonitoring.db.RoomConfig;
@@ -28,10 +28,6 @@ import marchandivan.RoomMonitoring.fragment.RoomFragment;
 import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
 
 public class MainActivity extends AppCompatActivity {
-    private Handler mHandler;
-
-    // Display refresh rate (in ms)
-    private int mDisplayRefreshInterval = 30 * 1000; // Every 30s
 
     private void updateDisplay() {
         try {
@@ -40,25 +36,19 @@ public class MainActivity extends AppCompatActivity {
             FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
 
             for (RoomConfig roomConfig : RoomConfig.GetMap(this).values()) {
-                RoomFragment fragment = new RoomFragment();
-                // Pass the name as parameter
-                Bundle args = new Bundle();
-                args.putString("room", roomConfig.mRoomName);
-                if (MonitorRoomReceiver.GetRooms().containsKey(roomConfig.mRoomName)) {
-                    JSONObject room = MonitorRoomReceiver.GetRooms().get(roomConfig.mRoomName);
-                    args.putFloat("temperature", Float.parseFloat(room.getString("temperature")));
-                    args.putFloat("humidity", Float.parseFloat(room.getString("humidity")));
-                }
-                fragment.setArguments(args);
-                // Add fragment to main activity
-                String aTag = "room_list_fragment_" + roomConfig.mRoomName;
-                if (fragmentManager.findFragmentByTag(aTag) != null) {
-                    Log.d("updateDisplay", "Replace fragment for " + roomConfig.mRoomName);
-                    fragmentTransaction.replace(R.id.room_list_table, fragment, aTag);
-                }
-                else {
-                    Log.d("updateDisplay", "Add fragment for " + roomConfig.mRoomName);
-                    fragmentTransaction.add(R.id.room_list_table, fragment, aTag);
+                // Should be visible?
+                if (roomConfig.mVisible) {
+                    RoomFragment fragment = new RoomFragment();
+                    // Pass the name as parameter
+                    Bundle args = new Bundle();
+                    args.putString("room", roomConfig.mRoomName);
+                    fragment.setArguments(args);
+                    // Add fragment to main activity
+                    String aTag = "room_list_fragment_" + roomConfig.mRoomName;
+                    if (fragmentManager.findFragmentByTag(aTag) == null) {
+                        Log.d("updateDisplay", "Add fragment for " + roomConfig.mRoomName);
+                        fragmentTransaction.add(R.id.room_list_table, fragment, aTag);
+                    }
                 }
             }
             // Something to commit?
@@ -71,22 +61,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private Runnable mDisplayRefresher = new Runnable() {
-        @Override
-        public void run() {
-            try {
-                if (hasWindowFocus()) {
-                    updateDisplay();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                mHandler.removeCallbacks(this);
-                mHandler.postDelayed(this, MonitorRoomReceiver.GetRooms().isEmpty() ? 1000 : mDisplayRefreshInterval);
-            }
-        }
-    };
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -94,26 +68,21 @@ public class MainActivity extends AppCompatActivity {
         // Set the layout
         setContentView(marchandivan.RoomMonitoring.R.layout.activity_main);
 
-        // Init the callback handler
-        mHandler = new Handler();
-
         // Activate the room monitoring
         MonitorRoomReceiver.Activate(this);
 
-        // Run the display refresher
-        updateDisplay();
-        mDisplayRefresher.run();
+        // Get current room temp
+        MonitorRoomReceiver.Update(this);
+
     }
 
     @Override
     protected void onResume() {
         super.onResume();
 
-        // Get current room temp
-        MonitorRoomReceiver.Update(this);
-
         // Update the display
         updateDisplay();
+
     }
 
     @Override
@@ -153,10 +122,11 @@ public class MainActivity extends AppCompatActivity {
     public void addRoom(View view) {
         // Get the list of room that can be added
         List<String> rooms = new ArrayList<String>();
-        for(String room: MonitorRoomReceiver.GetRooms().keySet()) {
-            Log.d("addRoom", room);
-            if(!RoomConfig.GetMap(view.getContext()).containsKey(room)) {
-                rooms.add(room);
+        final HashMap<String, RoomConfig> roomConfigHashMap = RoomConfig.GetMap(view.getContext());
+        for(RoomConfig roomConfig: roomConfigHashMap.values()) {
+            Log.d("addRoom", roomConfig.mRoomName);
+            if(!roomConfig.mVisible) {
+                rooms.add(roomConfig.mRoomName);
             }
         }
         Log.d("addRoom", rooms.toString());
@@ -177,8 +147,7 @@ public class MainActivity extends AppCompatActivity {
             builder.setPositiveButton("Add Room", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    RoomConfig roomConfig = new RoomConfig(dialogView.getContext(), spinner.getSelectedItem().toString());
-                    roomConfig.update();
+                    roomConfigHashMap.get(spinner.getSelectedItem().toString()).setVisibility(true);
                     updateDisplay();
                 }
             });

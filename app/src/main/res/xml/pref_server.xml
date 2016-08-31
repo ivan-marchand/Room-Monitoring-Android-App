@@ -2,8 +2,12 @@
     <PreferenceCategory
         android:title="@string/pref_header_server"
         android:key="pref_key_server_settings">
-        <!-- NOTE: EditTextPreference accepts EditText attributes. -->
-        <!-- NOTE: EditTextPreference's summary should be set to its value by the activity code. -->
+
+        <CheckBoxPreference
+            android:key="use_https"
+            android:title="@string/use_https"
+            android:defaultValue="false" />
+
         <EditTextPreference
             android:key="server_host"
             android:title="@string/pref_title_server_host"

@@ -23,6 +23,25 @@
     <string name="no">No</string>
     <string name="temperature_alert_header">Temperature Alert</string>
     <string name="temperature_alert_room_header">Room</string>
-    <string name="temperature_place_holder">-.- F</string>
+    <string name="temperature_place_holder">--.- F</string>
     <string name="room_place_holder">------</string>
+    <string name="humidity_place_holder">--.- %</string>
+    <string name="active_anytime">Active anytime</string>
+    <string name="start_time">Start Time</string>
+    <string name="stop_time">Stop Time</string>
+    <string name="min_temp">Min (F)</string>
+    <string name="max_temp">Max (F)</string>
+    <string name="alarm_is_onoff">Alarm is %s</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="temperatures">Temperatures</string>
+    <string name="temperature_value_missing_or_invalid">%s Temperature value missing or invalid</string>
+    <string name="min">Min</string>
+    <string name="max">Max</string>
+    <string name="max_temperature_must_be_higher_than_min_temperature">Max Temperature must be higher than Min temperature</string>
+    <string name="start_and_stop_time_has_to_be_different">Start and Stop time has to be different</string>
+    <string name="loading">Loading</string>
+    <string name="wating_for_connection">Waiting for connection....</string>
+    <string name="connection_failed">Connection Failed!</string>
+    <string name="use_https">Use https?</string>
 </resources>

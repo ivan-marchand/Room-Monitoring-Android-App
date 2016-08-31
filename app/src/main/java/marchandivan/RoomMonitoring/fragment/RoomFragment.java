@@ -7,16 +7,19 @@ import android.support.v4.app.Fragment;
 import android.os.Bundle;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import marchandivan.RoomMonitoring.R;
 import marchandivan.RoomMonitoring.RoomDetailsActivity;
 import marchandivan.RoomMonitoring.db.AlarmConfig;
 import marchandivan.RoomMonitoring.db.RoomConfig;
+import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
 
 /**
  * A placeholder fragment containing a simple view.
@@ -44,8 +47,7 @@ public class RoomFragment extends Fragment implements View.OnClickListener {
         roomName.setText(new String(roomCapitalized));
 
         // Update temperature and humidity
-        updateView(args.containsKey("temperature") ? args.getFloat("temperature") : null,
-                   args.containsKey("humidity") ? args.getFloat("humidity") : null);
+        registerViews();
 
         // Remove room button
         ImageButton removeRoomButton = (ImageButton) mView.findViewById(R.id.remove_room);
@@ -69,6 +71,12 @@ public class RoomFragment extends Fragment implements View.OnClickListener {
     }
 
     @Override
+    public void onDestroyView() {
+        unRegisterViews();
+        super.onDestroyView();
+    }
+
+    @Override
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.remove_room:
@@ -81,7 +89,7 @@ public class RoomFragment extends Fragment implements View.OnClickListener {
                     public void onClick(DialogInterface dialog, int which) {
                         // Remove room & alarm config
                         RoomConfig roomConfig = new RoomConfig(mFragment.getActivity(), mRoom);
-                        roomConfig.delete();
+                        roomConfig.setVisibility(false);
                         AlarmConfig alarmConfig = new AlarmConfig(mFragment.getActivity(), mRoom);
                         alarmConfig.delete();
 
@@ -102,18 +110,20 @@ public class RoomFragment extends Fragment implements View.OnClickListener {
         }
     }
 
-    public void updateView(Float temperature, Float humidity) {
+    private void registerViews() {
         if (mView != null) {
-            if (temperature != null) {
-                // Temperature
-                TextView temperatureView = (TextView)mView.findViewById(R.id.temperature);
-                temperatureView.setText(String.format("%.1f F", temperature));
-            }
-            if (humidity != null) {
-                // Humidity
-                TextView humidityView = (TextView)mView.findViewById(R.id.humidity);
-                humidityView.setText(String.format("%.1f %%", humidity));
-            }
+            // Temperature
+            TextView temperatureView = (TextView)mView.findViewById(R.id.temperature);
+            // Humidity
+            TextView humidityView = (TextView)mView.findViewById(R.id.humidity);
+            MonitorRoomReceiver.Register(mRoom, "main_view", temperatureView, humidityView);
+
         }
+    }
+
+    private void unRegisterViews() {
+        MonitorRoomReceiver.Unregister(mRoom, "main_view");
+        MonitorRoomReceiver.RemovePreUpdateCallback(mRoom, "main_view");
+        MonitorRoomReceiver.RemovePostUpdateCallback(mRoom, "main_view");
     }
 }

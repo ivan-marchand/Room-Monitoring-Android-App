@@ -19,7 +19,7 @@
             android:layout_centerVertical="true"
             android:textSize="30sp"
             android:textStyle="bold"
-            android:text="-----"/>
+            android:text="@string/room_place_holder"/>
         <ImageButton
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -53,7 +53,7 @@
                 android:src="@drawable/thermometer"/>
             <TextView
                 android:id="@+id/temperature"
-                android:text="--.- F"
+                android:text="@string/temperature_place_holder"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
@@ -72,7 +72,7 @@
                 android:src="@drawable/humidity"/>
             <TextView
                 android:id="@+id/humidity"
-                android:text="--.- %"
+                android:text="@string/humidity_place_holder"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"

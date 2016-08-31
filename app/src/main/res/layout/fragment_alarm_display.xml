@@ -5,15 +5,11 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     tools:context="marchandivan.RoomMonitoring.fragment.AlarmDisplayFragment">
-    <ImageView
+    <Switch
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerVertical="true"
-        android:paddingLeft="0sp"
-        android:paddingRight="@dimen/activity_horizontal_margin"
-        android:contentDescription="Alarm Active"
-        android:id="@+id/alarm_icon"
-        android:src="@drawable/alarm"/>
+        android:id="@+id/alarm_enabled"/>
     <LinearLayout
         android:id="@+id/alarm_settings_display"
         android:layout_width="match_parent"
@@ -21,7 +17,7 @@
         android:layout_centerVertical="true"
         android:orientation="vertical"
         android:layout_gravity="center_vertical"
-        android:layout_toRightOf="@+id/alarm_icon">
+        android:layout_toRightOf="@+id/alarm_enabled">
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -87,8 +83,7 @@
         android:layout_centerVertical="true"
         android:contentDescription="Edit Alarm"
         android:src="@drawable/edit"
-        android:id="@+id/edit_alarm"
-        android:layout_weight="1"/>
+        android:id="@+id/edit_alarm"/>
     <ImageButton
         android:layout_height="wrap_content"
         android:layout_width="wrap_content"
@@ -96,7 +91,6 @@
         android:layout_centerVertical="true"
         android:contentDescription="Delete Alarm"
         android:src="@drawable/remove"
-        android:id="@+id/delete_alarm"
-        android:layout_weight="1"/>
+        android:id="@+id/delete_alarm"/>
 
 </RelativeLayout>
