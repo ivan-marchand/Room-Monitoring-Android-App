@@ -16,9 +16,12 @@ import java.util.HashMap;
 /**
  * Created by ivan on 10/26/15.
  */
-public class RoomConfig {
+public class SensorConfig {
     // Cache expiration time
-    static final long mExpirationTime = 30 * 60 * 1000; // 30 minutes
+    static final long mExpirationTime = 12 * 60 * 60 * 1000; // 12 hours
+
+    // Expiration time after which the temperature measure is not valid anymore
+    static final long mpMeasureExpirationTime = 10 * 60 * 1000; // 10 minutes
 
     private long mId = 0;
     private ConfigDbHelper mDbHelper;
@@ -28,8 +31,8 @@ public class RoomConfig {
     public long mLastAlarm = 0;
     public JSONObject mData = new JSONObject();
 
-    static public HashMap<String, RoomConfig> GetMap(Context context) {
-        HashMap<String, RoomConfig> roomConfigs = new HashMap<String, RoomConfig>();
+    static public HashMap<String, SensorConfig> GetMap(Context context) {
+        HashMap<String, SensorConfig> roomConfigs = new HashMap<String, SensorConfig>();
         ConfigDbHelper dbHelper = new ConfigDbHelper(context);
         SQLiteDatabase db = dbHelper.getReadableDatabase();
 
@@ -56,10 +59,10 @@ public class RoomConfig {
         cursor.moveToFirst();
         for (int i = 0 ; i < cursor.getCount() ; i++) {
             String roomName = cursor.getString(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM));
-            Log.d("RoomConfig:readList", "Room " + roomName);
-            RoomConfig roomConfig = new RoomConfig(context, roomName);
-            if (roomConfig.read()) {
-                roomConfigs.put(roomName, roomConfig);
+            Log.d("SensorConfig:readList", "Room " + roomName);
+            SensorConfig sensorConfig = new SensorConfig(context, roomName);
+            if (sensorConfig.read()) {
+                roomConfigs.put(roomName, sensorConfig);
             }
             cursor.moveToNext();
         }
@@ -68,12 +71,23 @@ public class RoomConfig {
         return roomConfigs;
 
     }
-    public RoomConfig(Context context, String roomName) {
+
+    public static boolean MeasureHasExpired(Context context) {
+        // Check if all of the room temp/humidity measure have expired
+        for (SensorConfig sensorConfig : GetMap(context).values()) {
+            if (!sensorConfig.measureHasExpired()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public SensorConfig(Context context, String roomName) {
         mRoomName = roomName;
         mDbHelper = new ConfigDbHelper(context);
     }
 
-    public RoomConfig(Context context, String roomName, long lastUpdate, JSONObject data) {
+    public SensorConfig(Context context, String roomName, long lastUpdate, JSONObject data) {
         mRoomName = roomName;
         mDbHelper = new ConfigDbHelper(context);
         mLastUpdate = lastUpdate;
@@ -225,6 +239,28 @@ public class RoomConfig {
                 selection,
                 selectionArgs);
         db.close();
+    }
+
+    private Float getMeasure(final String key) {
+        try {
+            return (!measureHasExpired() && mData.has(key)) ? Float.valueOf(mData.getString(key)) : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public boolean measureHasExpired() {
+        long currentTime = System.currentTimeMillis();
+        // Measure expired?
+        return mLastUpdate + mpMeasureExpirationTime < currentTime;
+    }
+
+    public Float getTemperature() {
+        return getMeasure("temperature");
+    }
+
+    public Float getHumidity() {
+        return getMeasure("humidity");
     }
 
     public boolean hasExpired() {

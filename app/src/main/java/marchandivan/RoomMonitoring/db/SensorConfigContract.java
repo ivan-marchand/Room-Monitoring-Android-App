@@ -5,10 +5,10 @@ import android.provider.BaseColumns;
 /**
  * Created by ivan on 10/26/15.
  */
-public class RoomConfigContract {
+public class SensorConfigContract {
     // To prevent someone from accidentally instantiating the contract class,
     // give it an empty constructor.
-    public RoomConfigContract() {}
+    public SensorConfigContract() {}
 
     /* Inner class that defines the table contents */
     public static abstract class RoomEntry implements BaseColumns {

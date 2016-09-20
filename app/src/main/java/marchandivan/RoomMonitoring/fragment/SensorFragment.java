@@ -7,29 +7,27 @@ import android.support.v4.app.Fragment;
 import android.os.Bundle;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import marchandivan.RoomMonitoring.R;
 import marchandivan.RoomMonitoring.RoomDetailsActivity;
 import marchandivan.RoomMonitoring.db.AlarmConfig;
-import marchandivan.RoomMonitoring.db.RoomConfig;
+import marchandivan.RoomMonitoring.db.SensorConfig;
 import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
 
 /**
  * A placeholder fragment containing a simple view.
  */
-public class RoomFragment extends Fragment implements View.OnClickListener {
-    private String mRoom;
+public class SensorFragment extends Fragment implements View.OnClickListener {
+    private SensorConfig mSensorConfig;
     private View mView;
     private Fragment mFragment;
 
-    public RoomFragment() {
+    public SensorFragment() {
     }
 
     @Override
@@ -37,14 +35,13 @@ public class RoomFragment extends Fragment implements View.OnClickListener {
                              Bundle savedInstanceState) {
         mFragment = this;
         Bundle args = getArguments();
-        mRoom = args.getString("room");
+        mSensorConfig = new SensorConfig(getContext(), args.getLong("sensor_id"));
+        mSensorConfig.read();
         mView = inflater.inflate(R.layout.fragment_room, container, false);
 
         // Set room name, capitalized (First letter upper case)
         TextView roomName = (TextView)mView.findViewById(R.id.room_name);
-        char[] roomCapitalized = mRoom.toCharArray();
-        roomCapitalized[0] = Character.toUpperCase(roomCapitalized[0]);
-        roomName.setText(new String(roomCapitalized));
+        roomName.setText(mSensorConfig.getName());
 
         // Update temperature and humidity
         registerViews();
@@ -61,7 +58,7 @@ public class RoomFragment extends Fragment implements View.OnClickListener {
                 // Show room details
                 Intent roomDetailsIntent = new Intent(v.getContext(), RoomDetailsActivity.class);
                 Bundle args = new Bundle();
-                args.putString("room", mRoom);
+                args.putLong("sensor_id", mSensorConfig.getId());
                 roomDetailsIntent.putExtras(args);
                 v.getContext().startActivity(roomDetailsIntent);
             }
@@ -82,15 +79,14 @@ public class RoomFragment extends Fragment implements View.OnClickListener {
             case R.id.remove_room:
                 // Build the dialog
                 AlertDialog.Builder builder = new AlertDialog.Builder(v.getContext());
-                builder.setTitle("Are you sure you want to remove room " + mRoom + "?");
+                builder.setTitle("Are you sure you want to remove sensor " + mSensorConfig.getName() + "?");
                 builder.setNegativeButton("Cancel", null);
                 builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         // Remove room & alarm config
-                        RoomConfig roomConfig = new RoomConfig(mFragment.getActivity(), mRoom);
-                        roomConfig.setVisibility(false);
-                        AlarmConfig alarmConfig = new AlarmConfig(mFragment.getActivity(), mRoom);
+                        mSensorConfig.delete();
+                        AlarmConfig alarmConfig = new AlarmConfig(mFragment.getActivity(), mSensorConfig.getId());
                         alarmConfig.delete();
 
                         // Remove fragment
@@ -116,14 +112,14 @@ public class RoomFragment extends Fragment implements View.OnClickListener {
             TextView temperatureView = (TextView)mView.findViewById(R.id.temperature);
             // Humidity
             TextView humidityView = (TextView)mView.findViewById(R.id.humidity);
-            MonitorRoomReceiver.Register(mRoom, "main_view", temperatureView, humidityView);
+            MonitorRoomReceiver.Register(mSensorConfig.getId(), "main_view", temperatureView, humidityView);
 
         }
     }
 
     private void unRegisterViews() {
-        MonitorRoomReceiver.Unregister(mRoom, "main_view");
-        MonitorRoomReceiver.RemovePreUpdateCallback(mRoom, "main_view");
-        MonitorRoomReceiver.RemovePostUpdateCallback(mRoom, "main_view");
+        MonitorRoomReceiver.Unregister(mSensorConfig.getId(), "main_view");
+        MonitorRoomReceiver.RemovePreUpdateCallback(mSensorConfig.getId(), "main_view");
+        MonitorRoomReceiver.RemovePostUpdateCallback(mSensorConfig.getId(), "main_view");
     }
 }
