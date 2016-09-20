@@ -37,7 +37,7 @@ public class SensorFragment extends Fragment implements View.OnClickListener {
         Bundle args = getArguments();
         mSensorConfig = new SensorConfig(getContext(), args.getLong("sensor_id"));
         mSensorConfig.read();
-        mView = inflater.inflate(R.layout.fragment_room, container, false);
+        mView = inflater.inflate(R.layout.fragment_sensor, container, false);
 
         // Set room name, capitalized (First letter upper case)
         TextView roomName = (TextView)mView.findViewById(R.id.room_name);

@@ -85,12 +85,6 @@ public class SettingsActivity extends PreferenceActivity {
         // In the simplified UI, fragments are not used at all and we instead
         // use the older PreferenceActivity APIs.
 
-        // Add 'server' preferences.
-        addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_server);
-        bindPreferenceSummaryToValue(findPreference("server_host"));
-        bindPreferenceSummaryToValue(findPreference("server_port"));
-        bindPreferenceSummaryToValue(findPreference("server_user"));
-
         // Add 'alarm' preferences, and a corresponding header.
         addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_alarm);
         bindPreferenceSummaryToValue(findPreference("alarm_ringtone"));
@@ -210,43 +204,6 @@ public class SettingsActivity extends PreferenceActivity {
                 PreferenceManager
                         .getDefaultSharedPreferences(preference.getContext())
                         .getString(preference.getKey(), ""));
-    }
-
-    /**
-     * This fragment shows general preferences only. It is used when the
-     * activity is showing a two-pane settings UI.
-     */
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public static class ServerPreferenceFragment extends PreferenceFragment {
-        @Override
-        public void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_server);
-
-            // Bind the summaries of EditText/List/Dialog/Ringtone preferences
-            // to their values. When their values change, their summaries are
-            // updated to reflect the new value, per the Android Design
-            // guidelines.
-        }
-    }
-
-    /**
-     * This fragment shows notification preferences only. It is used when the
-     * activity is showing a two-pane settings UI.
-     */
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public static class NotificationPreferenceFragment extends PreferenceFragment {
-        @Override
-        public void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-
-            addPreferencesFromResource(marchandivan.RoomMonitoring.R.xml.pref_alarm);
-
-            // Bind the summaries of EditText/List/Dialog/Ringtone preferences
-            // to their values. When their values change, their summaries are
-            // updated to reflect the new value, per the Android Design
-            // guidelines.
-        }
     }
 
 }

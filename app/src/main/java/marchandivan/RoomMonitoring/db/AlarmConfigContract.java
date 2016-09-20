@@ -13,7 +13,7 @@ public class AlarmConfigContract {
     /* Inner class that defines the table contents */
     public static abstract class AlarmEntry implements BaseColumns {
         public static final String TABLE_NAME = "alarm_config";
-        public static final String COLUMN_NAME_ROOM = "room";
+        public static final String COLUMN_NAME_SENSOR = "sensor";
         public static final String COLUMN_NAME_ALARM_ACTIVE = "alarm_active";
         public static final String COLUMN_NAME_MAX_TEMP = "max_temp";
         public static final String COLUMN_NAME_MIN_TEMP = "min_temp";

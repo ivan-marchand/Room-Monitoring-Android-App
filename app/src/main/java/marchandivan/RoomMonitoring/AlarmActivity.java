@@ -28,17 +28,14 @@ import org.json.JSONException;
 
 import java.util.HashMap;
 
-import marchandivan.RoomMonitoring.db.RoomConfig;
-import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
+import marchandivan.RoomMonitoring.db.SensorConfig;
 
 
 public class AlarmActivity extends Activity {
     private Ringtone mRingtone;
     private Boolean mAlarmVibrate = false;
     private Integer mSilenceAfter;
-    private String mRoomName = "";
-    private Float mTemperature = new Float(0);
-    private Integer mMinTemperature = 0;
+    private SensorConfig mSensorConfig;
     private Integer mMaxTemperature = 0;
 
     @Override
@@ -54,27 +51,20 @@ public class AlarmActivity extends Activity {
         window.addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // Get room name
-        mRoomName = getIntent().getExtras().getString("room");
+        // Get sensor config
+        mSensorConfig = new SensorConfig(getBaseContext(), getIntent().getExtras().getLong("sensor_id"));
+        mSensorConfig.read();
         mMaxTemperature = getIntent().getExtras().getInt("max_temperature");
-        mMinTemperature = getIntent().getExtras().getInt("min_temperature");
-        TextView roomTextView = (TextView)findViewById(R.id.temperature_alert_room);
-        char[] roomCapitalized = mRoomName.toCharArray();
-        roomCapitalized[0] = Character.toUpperCase(roomCapitalized[0]);
-        roomTextView.setText(new String(roomCapitalized));
+        TextView sensorTextView = (TextView)findViewById(R.id.temperature_alert_sensor);
+        sensorTextView.setText(mSensorConfig.getName());
 
         // Update Temperature display
-        HashMap<String, RoomConfig> roomConfigs = RoomConfig.GetMap(this);
-        try {
-            mTemperature = Float.parseFloat(roomConfigs.get(mRoomName).mData.getString("temperature"));
-            TextView temperatureTextView = (TextView)findViewById(R.id.temperature_alert_temperature);
-            temperatureTextView.setText(String.format("%.1f F", mTemperature));
-        } catch (JSONException e) {
-            // Ignore
-        }
+        double temperature = mSensorConfig.getTemperature();
+        TextView temperatureTextView = (TextView)findViewById(R.id.temperature_alert_temperature);
+        temperatureTextView.setText(String.format("%.1f F", temperature));
 
         // Update background color and alert icon
-        if (mTemperature > mMaxTemperature) {
+        if (temperature > mMaxTemperature) {
             FrameLayout alarmScreen = (FrameLayout)findViewById(R.id.alarm_screen);
             alarmScreen.setBackgroundColor(getResources().getColor(R.color.orange_red));
             ImageView alertIcon = (ImageView)findViewById(R.id.temperature_alert_icon);

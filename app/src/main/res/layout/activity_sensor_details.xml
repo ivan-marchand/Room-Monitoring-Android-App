@@ -2,7 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="marchandivan.RoomMonitoring.RoomDetailsActivity">
+    tools:context="marchandivan.RoomMonitoring.SensorDetailsActivity">
     <ScrollView
         android:layout_width="fill_parent"
         android:layout_height="fill_parent">
@@ -15,7 +15,7 @@
                 android:layout_height="wrap_content"
                 android:background="@color/dark_gray">
                 <TextView
-                    android:id="@+id/room_name"
+                    android:id="@+id/sensor_name"
                     android:paddingLeft="@dimen/activity_horizontal_margin"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

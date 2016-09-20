@@ -3,22 +3,15 @@ package marchandivan.RoomMonitoring.dialog;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.CheckBox;
-import android.widget.LinearLayout;
-import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.TimePicker;
-import android.widget.Toast;
 
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 
 import marchandivan.RoomMonitoring.R;
-import marchandivan.RoomMonitoring.db.AlarmConfig;
-import marchandivan.RoomMonitoring.db.RoomConfig;
 import marchandivan.RoomMonitoring.http.CertificateInfo;
 import marchandivan.RoomMonitoring.http.SSLTrustManager;
 

@@ -16,7 +16,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center"
-        android:id="@+id/connect_progress"
+        android:id="@+id/connection_progress"
         android:visibility="gone" >
         <ImageView
             android:id="@+id/progress_bar_icon"

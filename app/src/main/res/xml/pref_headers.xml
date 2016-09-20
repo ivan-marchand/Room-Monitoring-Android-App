@@ -1,7 +1,6 @@
 <preference-headers xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- These settings headers are only used on tablets. -->
-
     <header
         android:fragment="marchandivan.RoomMonitoring.SettingsActivity$ServerPreferenceFragment"
         android:title="@string/pref_header_server" />
@@ -9,9 +8,5 @@
     <header
         android:fragment="marchandivan.RoomMonitoring.SettingsActivity$NotificationPreferenceFragment"
         android:title="@string/pref_header_alarm" />
-
-    <header
-        android:fragment="marchandivan.RoomMonitoring.SettingsActivity$DataSyncPreferenceFragment"
-        android:title="@string/pref_header_data_sync" />
 
 </preference-headers>

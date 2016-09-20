@@ -14,7 +14,7 @@ import android.widget.Toast;
 
 import marchandivan.RoomMonitoring.R;
 import marchandivan.RoomMonitoring.db.AlarmConfig;
-import marchandivan.RoomMonitoring.db.RoomConfig;
+import marchandivan.RoomMonitoring.db.SensorConfig;
 
 /**
  * Created by ivan on 11/2/15.
@@ -35,32 +35,32 @@ public class AlarmDialogBuilder {
     }
 
     // Add new alarm
-    public AlertDialog create(String room) {
+    public AlertDialog create(long sensor) {
         // Build the dialog
         mBuilder.setTitle("Add Alarm");
-        return createDialog(room, new AlarmConfig(mContext, room).getAlarmInstance());
+        return createDialog(sensor, new AlarmConfig(mContext, sensor).getAlarmInstance());
     }
 
     // Edit alarm
-    public AlertDialog edit(String room, AlarmConfig.Alarm alarm) {
+    public AlertDialog edit(long sensor, AlarmConfig.Alarm alarm) {
         // Build the dialog
         mBuilder.setTitle("Edit Alarm");
-        return createDialog(room, alarm);
+        return createDialog(sensor, alarm);
     }
 
-    private AlertDialog createDialog(String room, final AlarmConfig.Alarm alarm) {
+    private AlertDialog createDialog(long sensor, final AlarmConfig.Alarm alarm) {
         // Inflate layout
         LayoutInflater inflater = (LayoutInflater)mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         final View dialogView = inflater.inflate(R.layout.add_alarm_dialog, null);
 
         // Get Room and alarm config
-        final AlarmConfig alarmConfig = new AlarmConfig(mContext, room);
-        final RoomConfig roomConfig = new RoomConfig(mContext, room);
+        final AlarmConfig alarmConfig = new AlarmConfig(mContext, sensor);
+        final SensorConfig sensorConfig = new SensorConfig(mContext, sensor);
 
         // Alarm already exists ?
         Switch activeAnytimeSwitch = (Switch) dialogView.findViewById(R.id.alarm_active_anytime);
         final LinearLayout timeSettings = (LinearLayout) dialogView.findViewById(R.id.alarm_time_settings);
-        if(roomConfig.read() && alarm.mId != 0)
+        if(sensorConfig.read() && alarm.getId() != 0)
         {
             // Min/Max temp
             TextView minTemp = (TextView) dialogView.findViewById(R.id.alarm_min_temp);

@@ -9,20 +9,33 @@ import android.database.sqlite.SQLiteOpenHelper;
  */
 
 public class ConfigDbHelper extends SQLiteOpenHelper {
-    private static final String SQL_CREATE_ROOM_ENTRIES =
-            "CREATE TABLE " + RoomConfigContract.RoomEntry.TABLE_NAME + " (" +
-                    RoomConfigContract.RoomEntry._ID + " INTEGER PRIMARY KEY," +
-                    RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM + " TEXT," +
-                    RoomConfigContract.RoomEntry.COLUMN_NAME_VISIBLE + " INTEGER," +
-                    RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE + " INTEGER," +
-                    RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM + " INTEGER," +
-                    RoomConfigContract.RoomEntry.COLUMN_NAME_DATA + " TEXT" +
+    private static final String SQL_CREATE_SENSOR_ENTRIES =
+            "CREATE TABLE " + SensorConfigContract.SensorEntry.TABLE_NAME + " (" +
+                    SensorConfigContract.SensorEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    SensorConfigContract.SensorEntry.COLUMN_NAME_SENSOR + " TEXT," +
+                    SensorConfigContract.SensorEntry.COLUMN_NAME_TYPE + " TEXT," +
+                    SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_UPDATE + " INTEGER," +
+                    SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_ALARM + " INTEGER," +
+                    SensorConfigContract.SensorEntry.COLUMN_NAME_DATA + " TEXT," +
+                    SensorConfigContract.SensorEntry.COLUMN_NAME_DEVICE + " INTEGER," +
+                    SensorConfigContract.SensorEntry.COLUMN_NAME_CONFIG + " TEXT" +
+                    ")";
+
+    private static final String SQL_CREATE_DEVICE_ENTRIES =
+            "CREATE TABLE " + DeviceConfigContract.DeviceEntry.TABLE_NAME + " (" +
+                    DeviceConfigContract.DeviceEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    DeviceConfigContract.DeviceEntry.COLUMN_NAME_DEVICE + " TEXT," +
+                    DeviceConfigContract.DeviceEntry.COLUMN_NAME_TYPE + " TEXT," +
+                    DeviceConfigContract.DeviceEntry.COLUMN_NAME_HTTPS + " INTEGER," +
+                    DeviceConfigContract.DeviceEntry.COLUMN_NAME_HOST + " TEXT," +
+                    DeviceConfigContract.DeviceEntry.COLUMN_NAME_PORT + " INTEGER," +
+                    DeviceConfigContract.DeviceEntry.COLUMN_NAME_AUTH_CONFIG + " TEXT" +
                     ")";
 
     private static final String SQL_CREATE_ALARM_ENTRIES =
             "CREATE TABLE " + AlarmConfigContract.AlarmEntry.TABLE_NAME + " (" +
-                    AlarmConfigContract.AlarmEntry._ID + " INTEGER PRIMARY KEY," +
-                    AlarmConfigContract.AlarmEntry.COLUMN_NAME_ROOM + " TEXT," +
+                    AlarmConfigContract.AlarmEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    AlarmConfigContract.AlarmEntry.COLUMN_NAME_SENSOR + " INTEGER," +
                     AlarmConfigContract.AlarmEntry.COLUMN_NAME_ALARM_ACTIVE + " INTEGER, " +
                     AlarmConfigContract.AlarmEntry.COLUMN_NAME_MAX_TEMP + " INTEGER," +
                     AlarmConfigContract.AlarmEntry.COLUMN_NAME_MIN_TEMP + " INTEGER," +
@@ -32,26 +45,30 @@ public class ConfigDbHelper extends SQLiteOpenHelper {
                     AlarmConfigContract.AlarmEntry.COLUMN_NAME_STOP_MINUTE + " INTEGER" +
                     ")";
 
-    private static final String SQL_DELETE_ROOM_ENTRIES =
-            "DROP TABLE IF EXISTS " + RoomConfigContract.RoomEntry.TABLE_NAME;
+    private static final String SQL_DELETE_SENSOR_ENTRIES =
+            "DROP TABLE IF EXISTS " + SensorConfigContract.SensorEntry.TABLE_NAME;
+    private static final String SQL_DELETE_DEVICE_ENTRIES =
+            "DROP TABLE IF EXISTS " + DeviceConfigContract.DeviceEntry.TABLE_NAME;
     private static final String SQL_DELETE_ALARM_ENTRIES =
             "DROP TABLE IF EXISTS " + AlarmConfigContract.AlarmEntry.TABLE_NAME;
 
     // If you change the database schema, you must increment the database version.
-    public static final int DATABASE_VERSION = 3;
-    public static final String DATABASE_NAME = "RoomConfig.db";
+    public static final int DATABASE_VERSION = 2;
+    public static final String DATABASE_NAME = "Config.db";
 
     public ConfigDbHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
 
     public void onCreate(SQLiteDatabase db) {
-        db.execSQL(SQL_CREATE_ROOM_ENTRIES);
+        db.execSQL(SQL_CREATE_SENSOR_ENTRIES);
+        db.execSQL(SQL_CREATE_DEVICE_ENTRIES);
         db.execSQL(SQL_CREATE_ALARM_ENTRIES);
     }
 
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL(SQL_DELETE_ROOM_ENTRIES);
+        db.execSQL(SQL_DELETE_SENSOR_ENTRIES);
+        db.execSQL(SQL_DELETE_DEVICE_ENTRIES);
         db.execSQL(SQL_DELETE_ALARM_ENTRIES);
         onCreate(db);
     }

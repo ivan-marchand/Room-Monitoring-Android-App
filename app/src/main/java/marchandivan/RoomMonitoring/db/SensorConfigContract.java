@@ -11,12 +11,15 @@ public class SensorConfigContract {
     public SensorConfigContract() {}
 
     /* Inner class that defines the table contents */
-    public static abstract class RoomEntry implements BaseColumns {
-        public static final String TABLE_NAME = "room_config";
-        public static final String COLUMN_NAME_ROOM = "room";
-        public static final String COLUMN_NAME_VISIBLE = "visible";
+    public static abstract class SensorEntry implements BaseColumns {
+        public static final String TABLE_NAME = "sensor_config";
+        public static final String COLUMN_NAME_SENSOR = "sensor";
+        public static final String COLUMN_NAME_TYPE = "type";
         public static final String COLUMN_NAME_LAST_UPDATE = "last_update";
         public static final String COLUMN_NAME_LAST_ALARM = "last_alarm";
         public static final String COLUMN_NAME_DATA = "data";
+        public static final String COLUMN_NAME_DEVICE = "device";
+        public static final String COLUMN_NAME_CONFIG = "config";
+
     }
 }

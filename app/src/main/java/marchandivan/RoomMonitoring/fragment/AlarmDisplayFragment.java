@@ -34,11 +34,11 @@ import marchandivan.RoomMonitoring.dialog.AlarmDialogBuilder;
  * create an instance of this fragment.
  */
 public class AlarmDisplayFragment extends Fragment {
-    private static final String ARG_ROOM = "room";
+    private static final String ARG_SENSOR = "sensor";
     private static final String ARG_ALARM_ID = "alarm_id";
     private static final String EVEN_ROW = "even_row";
 
-    private String mRoom;
+    private long mSensor;
     private boolean mEvenRow;
     private AlarmConfig.Alarm mAlarm;
     private Fragment mFragment;
@@ -50,10 +50,10 @@ public class AlarmDisplayFragment extends Fragment {
      * @return A new instance of fragment AlarmDisplayFragment.
      */
     // TODO: Rename and change types and number of parameters
-    public static AlarmDisplayFragment newInstance(String room, long alarmId, boolean evenRow) {
+    public static AlarmDisplayFragment newInstance(long sensor, long alarmId, boolean evenRow) {
         AlarmDisplayFragment fragment = new AlarmDisplayFragment();
         Bundle args = new Bundle();
-        args.putString(ARG_ROOM, room);
+        args.putLong(ARG_SENSOR, sensor);
         args.putLong(ARG_ALARM_ID, alarmId);
         args.putBoolean(EVEN_ROW, evenRow);
         fragment.setArguments(args);
@@ -78,7 +78,7 @@ public class AlarmDisplayFragment extends Fragment {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 // Update alarm config
-                AlarmConfig alarmConfig = new AlarmConfig(buttonView.getContext(), mRoom);
+                AlarmConfig alarmConfig = new AlarmConfig(buttonView.getContext(), mSensor);
                 mAlarm.mAlarmActive = isChecked;
                 alarmConfig.update(mAlarm);
                 Toast.makeText(buttonView.getContext(),
@@ -118,7 +118,7 @@ public class AlarmDisplayFragment extends Fragment {
                 });
 
                 // Show the dialog
-                AlertDialog dialog = builder.edit(mRoom, mAlarm);
+                AlertDialog dialog = builder.edit(mSensor, mAlarm);
                 dialog.show();
 
             }
@@ -135,7 +135,7 @@ public class AlarmDisplayFragment extends Fragment {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         // Delete alarm from DB
-                        AlarmConfig alarmConfig = new AlarmConfig(mFragment.getActivity(), mRoom);
+                        AlarmConfig alarmConfig = new AlarmConfig(mFragment.getActivity(), mSensor);
                         alarmConfig.delete(mAlarm);
 
                         // Remove fragment
@@ -160,12 +160,12 @@ public class AlarmDisplayFragment extends Fragment {
         super.onCreate(savedInstanceState);
         mFragment = this;
         if (getArguments() != null) {
-            mRoom = getArguments().getString(ARG_ROOM);
+            mSensor = getArguments().getLong(ARG_SENSOR);
             long alarmId = getArguments().getLong(ARG_ALARM_ID);
             mEvenRow = getArguments().getBoolean(EVEN_ROW);
 
             // Get alarm config
-            AlarmConfig alarmConfig = new AlarmConfig(this.getActivity(), mRoom);
+            AlarmConfig alarmConfig = new AlarmConfig(this.getActivity(), mSensor);
             mAlarm = alarmConfig.read(alarmId);
 
         }

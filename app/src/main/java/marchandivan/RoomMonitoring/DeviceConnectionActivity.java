@@ -52,10 +52,13 @@ public class DeviceConnectionActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_connection);
+        setContentView(R.layout.activity_device_connection);
 
         // Get sensor
         mSensor = SensorFactory.Get(getIntent().getStringExtra("sensorType"));
+
+        // Activity title
+        setTitle(mSensor.getDisplayName());
 
         // Set icon
         if (mSensor.getIcon() != 0) {
@@ -67,7 +70,7 @@ public class DeviceConnectionActivity extends AppCompatActivity {
 
         // Device name
         mDeviceNameView = (AutoCompleteTextView) findViewById(R.id.device_name);
-        mDeviceNameView.setText(mSensor.getDeviceType());
+        mDeviceNameView.setText(mSensor.getDisplayName());
 
         // Set URL form.
         if (mSensor.needHostUrl()) {
@@ -81,9 +84,11 @@ public class DeviceConnectionActivity extends AppCompatActivity {
             case USER_PASSWORD:
                 findViewById(R.id.user_password_form).setVisibility(View.VISIBLE);
                 mUserView = (AutoCompleteTextView) findViewById(R.id.user);
+                mUserView.setText("marchandivan@gmail.com");
                 // Force password re-entry in case of modification
                 mPasswordView = (EditText) findViewById(R.id.password);
-                mPasswordView.setText("");
+                //mPasswordView.setText("");
+                mPasswordView.setText("stadiumIM01");
                 mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
                     @Override
                     public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
@@ -125,18 +130,26 @@ public class DeviceConnectionActivity extends AppCompatActivity {
 
         // Reset errors.
         mDeviceNameView.setError(null);
-        mHostView.setError(null);
-        mPortView.setError(null);
-        mUserView.setError(null);
-        mPasswordView.setError(null);
+        if (mHostView != null) {
+            mHostView.setError(null);
+        }
+        if (mPortView != null) {
+            mPortView.setError(null);
+        }
+        if (mUserView != null) {
+            mUserView.setError(null);
+        }
+        if (mPasswordView != null) {
+            mPasswordView.setError(null);
+        }
 
         // Store values at the time of the login attempt.
         String deviceName = mDeviceNameView.getText().toString();
-        boolean useHttps = mUseHttpsView.isChecked();
-        String host = mHostView.getText().toString();
-        int port = Integer.valueOf(mPortView.getText().toString());
-        String user = mUserView.getText().toString();
-        String password = mPasswordView.getText().toString();
+        boolean useHttps = mUseHttpsView != null ? mUseHttpsView.isChecked() : false;
+        String host = mHostView != null ? mHostView.getText().toString() : "";
+        int port = mPortView != null ? Integer.valueOf(mPortView.getText().toString()) : 0;
+        String user = mUserView != null ? mUserView.getText().toString() : "";
+        String password = mPasswordView != null ? mPasswordView.getText().toString() : "";
 
         boolean cancel = false;
         View focusView = null;

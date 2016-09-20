@@ -15,13 +15,16 @@ import java.util.ArrayList;
 public class AlarmConfig {
 
     public class Alarm {
-        public long mId = 0;
+        private long mId = 0;
         public Boolean mAlarmActive = false;
         public Integer mMaxTemp = 0;
         public Integer mMinTemp = 0;
         public Pair<Integer, Integer> mStartTime = new Pair<Integer, Integer>(0, 0);
         public Pair<Integer, Integer> mStopTime = new Pair<Integer, Integer>(0, 0);
 
+        public final long getId() {
+            return mId;
+        }
         private Alarm() {}
         private Alarm(Integer minTemp,
                       Integer maxTemp,
@@ -41,14 +44,14 @@ public class AlarmConfig {
     }
 
     private ConfigDbHelper mDbHelper;
-    public String mRoomName;
+    public long mSensor;
 
     public Alarm getAlarmInstance() {
         return new Alarm();
     }
 
-    public AlarmConfig(Context context, String roomName) {
-        mRoomName = roomName;
+    public AlarmConfig(Context context, long sensor) {
+        mSensor = sensor;
         mDbHelper = new ConfigDbHelper(context);
     }
 
@@ -73,7 +76,7 @@ public class AlarmConfig {
 
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
-        values.put(AlarmConfigContract.AlarmEntry.COLUMN_NAME_ROOM, mRoomName);
+        values.put(AlarmConfigContract.AlarmEntry.COLUMN_NAME_SENSOR, mSensor);
         values.put(AlarmConfigContract.AlarmEntry.COLUMN_NAME_ALARM_ACTIVE, alarm.mAlarmActive ? 1:0);
         values.put(AlarmConfigContract.AlarmEntry.COLUMN_NAME_MAX_TEMP, alarm.mMaxTemp);
         values.put(AlarmConfigContract.AlarmEntry.COLUMN_NAME_MIN_TEMP, alarm.mMinTemp);
@@ -91,13 +94,13 @@ public class AlarmConfig {
     }
 
     public void delete() {
-        Log.d("AlarmConfig:delete", "Room " + mRoomName);
+        Log.d("AlarmConfig:delete", "Room " + mSensor);
         // Gets the data repository in write mode
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         // Define 'where' part of query.
-        String selection = AlarmConfigContract.AlarmEntry.COLUMN_NAME_ROOM + " =?";
+        String selection = AlarmConfigContract.AlarmEntry.COLUMN_NAME_SENSOR + " =?";
         // Specify arguments in placeholder order.
-        String[] selectionArgs = { mRoomName };
+        String[] selectionArgs = {String.valueOf(mSensor)};
         // Issue SQL statement.
         db.delete(AlarmConfigContract.AlarmEntry.TABLE_NAME, selection, selectionArgs);
         db.close();
@@ -132,11 +135,11 @@ public class AlarmConfig {
                 AlarmConfigContract.AlarmEntry.COLUMN_NAME_STOP_MINUTE,
         };
 
-        String[] selectionArgs = {mRoomName};
+        String[] selectionArgs = {String.valueOf(mSensor)};
         Cursor cursor = db.query(
                 AlarmConfigContract.AlarmEntry.TABLE_NAME,  // The table to query
                 projection,                               // The columns to return
-                AlarmConfigContract.AlarmEntry.COLUMN_NAME_ROOM + "=?",         // The columns for the WHERE clause
+                AlarmConfigContract.AlarmEntry.COLUMN_NAME_SENSOR + "=?",         // The columns for the WHERE clause
                 selectionArgs,                            // The values for the WHERE clause
                 null,                                     // don't group the rows
                 null,                                     // don't filter by row groups

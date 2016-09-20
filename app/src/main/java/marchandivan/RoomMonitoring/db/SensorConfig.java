@@ -11,38 +11,80 @@ import org.json.JSONObject;
 
 import java.util.HashMap;
 
+import marchandivan.RoomMonitoring.sensor.Sensor;
 
 
 /**
  * Created by ivan on 10/26/15.
  */
 public class SensorConfig {
-    // Cache expiration time
-    static final long mExpirationTime = 12 * 60 * 60 * 1000; // 12 hours
 
     // Expiration time after which the temperature measure is not valid anymore
     static final long mpMeasureExpirationTime = 10 * 60 * 1000; // 10 minutes
 
     private long mId = 0;
     private ConfigDbHelper mDbHelper;
-    public String mRoomName;
-    public boolean mVisible = false;
-    public long mLastUpdate = 0;
-    public long mLastAlarm = 0;
-    public JSONObject mData = new JSONObject();
+    private String mSensorName;
+    private Sensor.Type mType;
+    private long mLastUpdate = 0;
+    private long mLastAlarm = 0;
+    private JSONObject mData = new JSONObject();
+    private long mDeviceId = 0;
+    private JSONObject mConfig = new JSONObject();
 
-    static public HashMap<String, SensorConfig> GetMap(Context context) {
-        HashMap<String, SensorConfig> roomConfigs = new HashMap<String, SensorConfig>();
+    public final long getId() {
+        return mId;
+    }
+
+    public final String getName() {
+        return mSensorName;
+    }
+
+    public final long getLastAlarm() {
+        return mLastAlarm;
+    }
+
+    public final JSONObject getData() {
+        return mData;
+    }
+
+    public void setData(final JSONObject data) {
+        mLastUpdate = System.currentTimeMillis();
+        mData = data;
+    }
+
+    public long getDeviceId() {
+        return mDeviceId;
+    }
+
+    public String getConfigString(final String field) {
+        try {
+            return mConfig.getString(field);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    public SensorConfig(Context context, final String sensorName, final Sensor.Type type, long deviceId, JSONObject config) {
+        mDbHelper = new ConfigDbHelper(context);
+        mSensorName = sensorName;
+        mType = type;
+        mDeviceId = deviceId;
+        mConfig = config;
+    }
+
+    static public HashMap<Long, SensorConfig> GetMap(Context context) {
+        HashMap<Long, SensorConfig> sensorConfigs = new HashMap<Long, SensorConfig>();
         ConfigDbHelper dbHelper = new ConfigDbHelper(context);
         SQLiteDatabase db = dbHelper.getReadableDatabase();
 
         String[] projection = {
-                RoomConfigContract.RoomEntry._ID,
-                RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM,
+                SensorConfigContract.SensorEntry._ID,
+                SensorConfigContract.SensorEntry.COLUMN_NAME_SENSOR,
         };
 
         Cursor cursor = db.query(
-                RoomConfigContract.RoomEntry.TABLE_NAME,  // The table to query
+                SensorConfigContract.SensorEntry.TABLE_NAME,  // The table to query
                 projection,                               // The columns to return
                 null,                                     // The columns for the WHERE clause
                 null,                                     // The values for the WHERE clause
@@ -58,17 +100,17 @@ public class SensorConfig {
         // Get values
         cursor.moveToFirst();
         for (int i = 0 ; i < cursor.getCount() ; i++) {
-            String roomName = cursor.getString(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM));
-            Log.d("SensorConfig:readList", "Room " + roomName);
-            SensorConfig sensorConfig = new SensorConfig(context, roomName);
+            Long id = cursor.getLong(cursor.getColumnIndexOrThrow(SensorConfigContract.SensorEntry._ID));
+            Log.d("SensorConfig:readList", "Sensor " + id);
+            SensorConfig sensorConfig = new SensorConfig(context, id);
             if (sensorConfig.read()) {
-                roomConfigs.put(roomName, sensorConfig);
+                sensorConfigs.put(id, sensorConfig);
             }
             cursor.moveToNext();
         }
 
         db.close();
-        return roomConfigs;
+        return sensorConfigs;
 
     }
 
@@ -82,36 +124,36 @@ public class SensorConfig {
         return true;
     }
 
-    public SensorConfig(Context context, String roomName) {
-        mRoomName = roomName;
+    public SensorConfig(Context context, long id) {
+        mId = id;
         mDbHelper = new ConfigDbHelper(context);
     }
 
-    public SensorConfig(Context context, String roomName, long lastUpdate, JSONObject data) {
-        mRoomName = roomName;
+    public SensorConfig(Context context, String sensorName, long lastUpdate, JSONObject data) {
+        mSensorName = sensorName;
         mDbHelper = new ConfigDbHelper(context);
         mLastUpdate = lastUpdate;
         mData = data;
     }
 
     public void add() {
-        // Delete existing entry if any
-        delete();
 
-        // Gets the data repository in write mode
+        // Gets the data repository in wyrite mode
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM, mRoomName);
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_VISIBLE, mVisible ? 1 : 0);
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE, mLastUpdate);
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM, mLastAlarm);
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_DATA, mData.toString());
+        values.put(SensorConfigContract.SensorEntry.COLUMN_NAME_SENSOR, mSensorName);
+        values.put(SensorConfigContract.SensorEntry.COLUMN_NAME_TYPE, Sensor.ToString(mType));
+        values.put(SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_UPDATE, mLastUpdate);
+        values.put(SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_ALARM, mLastAlarm);
+        values.put(SensorConfigContract.SensorEntry.COLUMN_NAME_DATA, mData.toString());
+        values.put(SensorConfigContract.SensorEntry.COLUMN_NAME_DEVICE, mDeviceId);
+        values.put(SensorConfigContract.SensorEntry.COLUMN_NAME_CONFIG, mConfig.toString());
 
         // Insert the new row, returning the primary key value of the new row
         mId = db.insert(
-                RoomConfigContract.RoomEntry.TABLE_NAME,
+                SensorConfigContract.SensorEntry.TABLE_NAME,
                 null,
                 values);
         db.close();
@@ -121,11 +163,11 @@ public class SensorConfig {
         // Gets the data repository in write mode
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         // Define 'where' part of query.
-        String selection = RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM + " =?";
+        String selection = SensorConfigContract.SensorEntry._ID + " =?";
         // Specify arguments in placeholder order.
-        String[] selectionArgs = { mRoomName };
+        String[] selectionArgs = {String.valueOf(mId)};
         // Issue SQL statement.
-        db.delete(RoomConfigContract.RoomEntry.TABLE_NAME, selection, selectionArgs);
+        db.delete(SensorConfigContract.SensorEntry.TABLE_NAME, selection, selectionArgs);
         db.close();
     }
 
@@ -133,18 +175,20 @@ public class SensorConfig {
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
 
         String[] projection = {
-                RoomConfigContract.RoomEntry._ID,
-                RoomConfigContract.RoomEntry.COLUMN_NAME_VISIBLE,
-                RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE,
-                RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM,
-                RoomConfigContract.RoomEntry.COLUMN_NAME_DATA
+                SensorConfigContract.SensorEntry.COLUMN_NAME_SENSOR,
+                SensorConfigContract.SensorEntry.COLUMN_NAME_TYPE,
+                SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_UPDATE,
+                SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_ALARM,
+                SensorConfigContract.SensorEntry.COLUMN_NAME_DATA,
+                SensorConfigContract.SensorEntry.COLUMN_NAME_DEVICE,
+                SensorConfigContract.SensorEntry.COLUMN_NAME_CONFIG
         };
 
-        String[] selectionArgs = {mRoomName};
+        String[] selectionArgs = {String.valueOf(mId)};
         Cursor cursor = db.query(
-                RoomConfigContract.RoomEntry.TABLE_NAME,  // The table to query
+                SensorConfigContract.SensorEntry.TABLE_NAME,  // The table to query
                 projection,                               // The columns to return
-                RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM + "=?",         // The columns for the WHERE clause
+                SensorConfigContract.SensorEntry._ID + "=?",         // The columns for the WHERE clause
                 selectionArgs,                            // The values for the WHERE clause
                 null,                                     // don't group the rows
                 null,                                     // don't filter by row groups
@@ -159,15 +203,22 @@ public class SensorConfig {
 
         // Get values
         cursor.moveToFirst();
-        mId = cursor.getLong(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry._ID));
-        mVisible = cursor.getInt(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_VISIBLE)) > 0;
-        mLastUpdate = cursor.getLong(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE));
-        mLastAlarm = cursor.getLong(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM));
+        mSensorName = cursor.getString(cursor.getColumnIndexOrThrow(SensorConfigContract.SensorEntry.COLUMN_NAME_SENSOR));
+        mType = Sensor.FromString(cursor.getString(cursor.getColumnIndexOrThrow(SensorConfigContract.SensorEntry.COLUMN_NAME_TYPE)));
+        mLastUpdate = cursor.getLong(cursor.getColumnIndexOrThrow(SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_UPDATE));
+        mLastAlarm = cursor.getLong(cursor.getColumnIndexOrThrow(SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_ALARM));
+        mDeviceId = cursor.getLong(cursor.getColumnIndexOrThrow(SensorConfigContract.SensorEntry.COLUMN_NAME_DEVICE));
         try {
-            mData = new JSONObject(cursor.getString(cursor.getColumnIndexOrThrow(RoomConfigContract.RoomEntry.COLUMN_NAME_DATA)));
+            mData = new JSONObject(cursor.getString(cursor.getColumnIndexOrThrow(SensorConfigContract.SensorEntry.COLUMN_NAME_DATA)));
         } catch (JSONException e) {
             // Unable to decode
             mData = new JSONObject();
+        }
+        try {
+            mConfig = new JSONObject(cursor.getString(cursor.getColumnIndexOrThrow(SensorConfigContract.SensorEntry.COLUMN_NAME_CONFIG)));
+        } catch (JSONException e) {
+            // Unable to decode
+            mConfig = new JSONObject();
         }
 
         db.close();
@@ -183,37 +234,15 @@ public class SensorConfig {
 
         // New value for one column
         ContentValues values = new ContentValues();
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_UPDATE, mLastUpdate);
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_DATA, mData.toString());
+        values.put(SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_UPDATE, mLastUpdate);
+        values.put(SensorConfigContract.SensorEntry.COLUMN_NAME_DATA, mData.toString());
 
         // Which row to update, based on the ID
-        String selection = RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM + "=?";
-        String[] selectionArgs = { mRoomName };
+        String selection = SensorConfigContract.SensorEntry._ID + "=?";
+        String[] selectionArgs = {String.valueOf(mId)};
 
         int count = db.update(
-                RoomConfigContract.RoomEntry.TABLE_NAME,
-                values,
-                selection,
-                selectionArgs);
-        db.close();
-    }
-
-    public void setVisibility(boolean isVisible) {
-        mVisible = isVisible;
-
-        // Gets the data repository in write mode
-        SQLiteDatabase db = mDbHelper.getWritableDatabase();
-
-        // New value for one column
-        ContentValues values = new ContentValues();
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_VISIBLE, mVisible ? 1 : 0);
-
-        // Which row to update, based on the ID
-        String selection = RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM + "=?";
-        String[] selectionArgs = { mRoomName };
-
-        int count = db.update(
-                RoomConfigContract.RoomEntry.TABLE_NAME,
+                SensorConfigContract.SensorEntry.TABLE_NAME,
                 values,
                 selection,
                 selectionArgs);
@@ -227,23 +256,23 @@ public class SensorConfig {
 
         // New value for one column
         ContentValues values = new ContentValues();
-        values.put(RoomConfigContract.RoomEntry.COLUMN_NAME_LAST_ALARM, mLastAlarm);
+        values.put(SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_ALARM, mLastAlarm);
 
         // Which row to update, based on the ID
-        String selection = RoomConfigContract.RoomEntry.COLUMN_NAME_ROOM + "=?";
-        String[] selectionArgs = { mRoomName };
+        String selection = SensorConfigContract.SensorEntry._ID + "=?";
+        String[] selectionArgs = {String.valueOf(mId)};
 
         int count = db.update(
-                RoomConfigContract.RoomEntry.TABLE_NAME,
+                SensorConfigContract.SensorEntry.TABLE_NAME,
                 values,
                 selection,
                 selectionArgs);
         db.close();
     }
 
-    private Float getMeasure(final String key) {
+    private Double getMeasure(final String key) {
         try {
-            return (!measureHasExpired() && mData.has(key)) ? Float.valueOf(mData.getString(key)) : null;
+            return (!measureHasExpired() && mData.has(key)) ? mData.getDouble(key) : null;
         } catch (Exception e) {
             return null;
         }
@@ -255,17 +284,12 @@ public class SensorConfig {
         return mLastUpdate + mpMeasureExpirationTime < currentTime;
     }
 
-    public Float getTemperature() {
+    public Double getTemperature() {
         return getMeasure("temperature");
     }
 
-    public Float getHumidity() {
+    public Double getHumidity() {
         return getMeasure("humidity");
     }
 
-    public boolean hasExpired() {
-        long currentTime = System.currentTimeMillis();
-        // Measure expired?
-        return mLastUpdate + mExpirationTime > currentTime;
-    }
 }

@@ -1,7 +1,6 @@
 package marchandivan.RoomMonitoring;
 
-import android.app.AlertDialog;
-import android.content.DialogInterface;
+import android.app.Activity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.content.Intent;
@@ -10,21 +9,14 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Spinner;
-import android.widget.Toast;
+import android.widget.ProgressBar;
 
-import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
-import marchandivan.RoomMonitoring.db.RoomConfig;
-import marchandivan.RoomMonitoring.fragment.RoomFragment;
+import marchandivan.RoomMonitoring.db.SensorConfig;
+import marchandivan.RoomMonitoring.dialog.SensorDialogBuilder;
+import marchandivan.RoomMonitoring.fragment.SensorFragment;
 import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
 
 public class MainActivity extends AppCompatActivity {
@@ -35,26 +27,28 @@ public class MainActivity extends AppCompatActivity {
             FragmentManager fragmentManager = getSupportFragmentManager();
             FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
 
-            for (RoomConfig roomConfig : RoomConfig.GetMap(this).values()) {
+            for (SensorConfig sensorConfig : SensorConfig.GetMap(this).values()) {
                 // Should be visible?
-                if (roomConfig.mVisible) {
-                    RoomFragment fragment = new RoomFragment();
-                    // Pass the name as parameter
-                    Bundle args = new Bundle();
-                    args.putString("room", roomConfig.mRoomName);
-                    fragment.setArguments(args);
-                    // Add fragment to main activity
-                    String aTag = "room_list_fragment_" + roomConfig.mRoomName;
-                    if (fragmentManager.findFragmentByTag(aTag) == null) {
-                        Log.d("updateDisplay", "Add fragment for " + roomConfig.mRoomName);
-                        fragmentTransaction.add(R.id.room_list_table, fragment, aTag);
-                    }
+                SensorFragment fragment = new SensorFragment();
+                // Pass the name as parameter
+                Bundle args = new Bundle();
+                args.putLong("sensor_id", sensorConfig.getId());
+                fragment.setArguments(args);
+                // Add fragment to main activity
+                String aTag = "sensor_list_fragment_" + sensorConfig.getId() + "_" + sensorConfig.getName();
+                if (fragmentManager.findFragmentByTag(aTag) == null) {
+                    Log.d("updateDisplay", "Add fragment for " + aTag);
+                    fragmentTransaction.add(R.id.sensor_list_table, fragment, aTag);
                 }
             }
+
             // Something to commit?
             if (!fragmentTransaction.isEmpty()) {
                 fragmentTransaction.commit();
             }
+
+            // Update temp/humidity display
+            MonitorRoomReceiver.UpdateViews(getBaseContext());
         }
         catch (Exception e) {
 
@@ -65,15 +59,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        Log.d("MainActivity", "onCreate");
+
         // Set the layout
         setContentView(marchandivan.RoomMonitoring.R.layout.activity_main);
 
         // Activate the room monitoring
         MonitorRoomReceiver.Activate(this);
-
-        // Get current room temp
-        MonitorRoomReceiver.Update(this);
-
     }
 
     @Override
@@ -83,6 +75,36 @@ public class MainActivity extends AppCompatActivity {
         // Update the display
         updateDisplay();
 
+        // Get current room temp if not available
+        if (SensorConfig.MeasureHasExpired(this.getBaseContext())) {
+            final Activity activity = this;
+            Thread thread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    // Show and animate progress bar
+                    final ProgressBar progressBar = (ProgressBar) findViewById(R.id.progress_bar);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progressBar.setVisibility(View.VISIBLE);
+                            progressBar.bringToFront();
+                            progressBar.animate();
+                        }
+                    });
+                    // Get current temperature
+                    MonitorRoomReceiver.Update(activity);
+                    // Stop and hide progress bar
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progressBar.animate().cancel();
+                            progressBar.setVisibility(View.GONE);
+                        }
+                    });
+                }
+            });
+            thread.start();
+        }
     }
 
     @Override
@@ -119,55 +141,10 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void addRoom(View view) {
-        // Get the list of room that can be added
-        List<String> rooms = new ArrayList<String>();
-        final HashMap<String, RoomConfig> roomConfigHashMap = RoomConfig.GetMap(view.getContext());
-        for(RoomConfig roomConfig: roomConfigHashMap.values()) {
-            Log.d("addRoom", roomConfig.mRoomName);
-            if(!roomConfig.mVisible) {
-                rooms.add(roomConfig.mRoomName);
-            }
-        }
-        Log.d("addRoom", rooms.toString());
-
-        if (!rooms.isEmpty()) {
-            // Build the dialog
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Select a room");
-            // Inflate layout
-            LayoutInflater inflater = this.getLayoutInflater();
-            final View dialogView = inflater.inflate(R.layout.add_room_dialog, null);
-            final Spinner spinner = (Spinner)dialogView.findViewById(R.id.room_spinner);
-            ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(this, R.layout.spinner_layout, rooms);
-            dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinner.setAdapter(dataAdapter);
-            builder.setView(dialogView);
-            // Add confirm/cancel buttons
-            builder.setPositiveButton("Add Room", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    roomConfigHashMap.get(spinner.getSelectedItem().toString()).setVisibility(true);
-                    updateDisplay();
-                }
-            });
-            // Add confirm/cancel buttons
-            builder.setNegativeButton("Cancel", null);
-
-            // Show the dialog
-            AlertDialog dialog = builder.create();
-            dialog.show();
-        }
-        else {
-            // Build the dialog
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("No room available");
-            builder.setPositiveButton("Ok", null);
-
-            // Show the dialog
-            AlertDialog dialog = builder.create();
-            dialog.show();
-        }
+    public void addSensor(View view) {
+        // Build and show dialog
+        SensorDialogBuilder addSensorDialogBuilder = new SensorDialogBuilder(this);
+        addSensorDialogBuilder.show();
     }
 
     public void openSettings() {

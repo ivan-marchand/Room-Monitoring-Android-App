@@ -30,19 +30,19 @@
             android:text="@string/temperature_place_holder" />
 
         <TextView
-            android:id="@+id/temperature_alert_room_header"
+            android:id="@+id/temperature_alert_sensor_header"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_below="@+id/temperature_alert_temperature"
             android:textStyle="bold"
             android:textSize="30sp"
-            android:text="@string/temperature_alert_room_header" />
+            android:text="@string/temperature_alert_sensor_header" />
 
         <TextView
-            android:id="@+id/temperature_alert_room"
+            android:id="@+id/temperature_alert_sensor"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/temperature_alert_room_header"
+            android:layout_below="@+id/temperature_alert_sensor_header"
             android:gravity="center_horizontal"
             android:textStyle="bold"
             android:textSize="70sp"
@@ -54,7 +54,7 @@
             android:layout_height="wrap_content"
             android:layout_centerHorizontal="true"
             android:layout_centerVertical="true"
-            android:layout_below="@id/temperature_alert_room"
+            android:layout_below="@id/temperature_alert_sensor"
             android:src="@drawable/cold_64"/>
     </RelativeLayout>
 

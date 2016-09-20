@@ -1,5 +1,6 @@
 package marchandivan.RoomMonitoring.receiver;
 
+import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -10,28 +11,27 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.util.Pair;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import marchandivan.RoomMonitoring.AlarmActivity;
 import marchandivan.RoomMonitoring.R;
 import marchandivan.RoomMonitoring.db.AlarmConfig;
-import marchandivan.RoomMonitoring.db.RoomConfig;
-import marchandivan.RoomMonitoring.http.RestClient;
+import marchandivan.RoomMonitoring.db.DeviceConfig;
+import marchandivan.RoomMonitoring.db.SensorConfig;
+import marchandivan.RoomMonitoring.sensor.Sensor;
+import marchandivan.RoomMonitoring.sensor.SensorFactory;
 
 public class MonitorRoomReceiver extends BroadcastReceiver {
 
@@ -41,27 +41,15 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
     // Quiet period during which the alarm won't be fired after an alert
     static final long mQuietPeriod = 30 * 60 * 1000; // 30 minutes
 
-    // Expiration time after which the temperature measure is not valid anymore
-    static final long mTempMeasureExpirationTime = 10 * 60 * 1000; // 10 minutes
-
     // true if alarm in activated
     private boolean mAlarmActivated = false;
 
     // TextView to update
-    static private HashMap<String, HashMap<String, Pair<TextView, TextView> > > mTextViewListeners = new HashMap<String, HashMap<String, Pair<TextView, TextView> > >();
+    static private HashMap<Long, HashMap<String, Pair<TextView, TextView> > > mTextViewListeners = new HashMap<Long, HashMap<String, Pair<TextView,TextView>>>();
 
     // Callbacks
     static private HashMap<String, Runnable> mPreUpdateCallbacks = new HashMap<String, Runnable>();
     static private HashMap<String, Runnable> mPostUpdateCallbacks = new HashMap<String, Runnable>();
-
-    // Rest client instance, used to access remote server
-    private RestClient mRestClient;
-
-    // Update room temp
-    public static void Update(Context context) {
-        MonitorRoomReceiver monitorRoomReceiver = new MonitorRoomReceiver();
-        monitorRoomReceiver.update(context);
-    }
 
     // Activate the monitoring
     public static void Activate(Context context) {
@@ -102,51 +90,37 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
                 PackageManager.DONT_KILL_APP);
     }
 
-    protected class Update extends AsyncTask<Void, Void, JSONArray> {
+    protected class Update extends AsyncTask<Void, Void, JSONObject> {
         Context mContext;
+        SensorConfig mSensorConfig;
 
-        public Update(Context context) {
+        public Update(Context context, SensorConfig sensorConfig) {
             mContext = context;
+            mSensorConfig = sensorConfig;
         }
 
-        protected JSONArray doInBackground(Void... voids) {
+        protected JSONObject doInBackground(Void... voids) {
             // Call callbacks
             for (Runnable callback : mPreUpdateCallbacks.values()) {
                 callback.run();
             }
-
-            return mRestClient.getArray("/api/v1/get/rooms");
+            DeviceConfig deviceConfig = new DeviceConfig(mContext, mSensorConfig.getDeviceId());
+            deviceConfig.read();
+            Sensor sensor = SensorFactory.Get(deviceConfig.getType());
+            return sensor.getSensorMeasure(mContext, mSensorConfig);
         }
 
-        protected void onPostExecute(JSONArray result) {
+        protected void onPostExecute(JSONObject result) {
             try {
                 long lastUpdate = System.currentTimeMillis();
-                HashSet<String> newRooms = new HashSet<String>();
-                for (int i = 0 ; i < result.length() ; i++) {
-                    JSONObject room = result.getJSONObject(i);
-                    String roomName = room.getString("room");
-                    newRooms.add(roomName);
+                mSensorConfig.update(lastUpdate, result);
 
-                    // Update Db
-                    HashMap<String, RoomConfig> roomConfigs = RoomConfig.GetMap(mContext);
-                    Log.d("UpdateRoom", roomName);
-                    if (roomConfigs.containsKey(roomName)) {
-                        roomConfigs.get(roomName).update(lastUpdate, room);
-                    } else {
-                        RoomConfig roomConfig = new RoomConfig(mContext, roomName, lastUpdate, room);
-                        roomConfig.add();
-                    }
-                    // Remove room from cache if expired
-                    for (RoomConfig roomConfig: roomConfigs.values()) {
-                        if (!newRooms.contains(roomConfig.mRoomName) && roomConfig.hasExpired()) {
-                            roomConfig.delete();
-                        }
-                    }
-                    // Update registered views
-                    Float temperature = room.has("temperature") ? Float.parseFloat(room.getString("temperature")) : null;
-                    Float humidity = room.has("humidity") ? Float.parseFloat(room.getString("humidity")) : null;
-                    UpdateViews(roomName, temperature, humidity);
+                // Display error if any
+                if (result.has("error")) {
+                    Toast.makeText(mContext, result.getString("error"), Toast.LENGTH_SHORT).show();
                 }
+                // Update registered views
+                UpdateViews(mSensorConfig.getId(), mSensorConfig.getTemperature(), mSensorConfig.getHumidity());
 
                 // Call callbacks
                 for (Runnable callback : mPostUpdateCallbacks.values()) {
@@ -157,31 +131,63 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
                 Log.d("UpdateRoom", "Error " + e.toString());
             }
             // Check alarm
-            checkAlarm(mContext);
+            checkAlarm(mContext, mSensorConfig);
         }
     }
 
-    private static void UpdateViews(String room, Float temperature, Float humidity) {
-        if (mTextViewListeners.containsKey(room)) {
-            for(Map.Entry<String, Pair<TextView, TextView> > roomViews : mTextViewListeners.get(room).entrySet()) {
-                if (temperature != null) {
-                    // Temperature
-                    roomViews.getValue().first.setText(String.format("%.1f F", temperature));
-                }
-                if (humidity != null) {
-                    // Humidity
-                    roomViews.getValue().second.setText(String.format("%.1f %%", humidity));
-                }
-            }
-        }
+    // Update room temp
+    public static boolean Update(Activity parent) {
+        MonitorRoomReceiver monitorRoomReceiver = new MonitorRoomReceiver();
+        return monitorRoomReceiver.update(parent);
     }
 
-    public void update(Context context) {
+    public boolean update(Activity parent) {
 
-        this.configure(context);
+        this.configure(parent.getBaseContext());
+        final Context context = parent.getBaseContext();
 
         // Update Room Temperature
-        new Update(context).execute();
+        ArrayList<Update> updates = new ArrayList<>();
+        for (SensorConfig sensorConfig: SensorConfig.GetMap(context).values()) {
+            Update update = new Update(context, sensorConfig);
+            updates.add(update);
+            update.execute();
+        }
+
+        // Wait for all tasks to complete
+        for (Update update: updates) {
+            try {
+                update.get(10, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                parent.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(context, context.getString(R.string.timeout), Toast.LENGTH_LONG).show();
+                    }
+                });
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static void UpdateViews(Context context) {
+        for (SensorConfig sensorConfig: SensorConfig.GetMap(context).values()) {
+            UpdateViews(sensorConfig.getId(), sensorConfig.getTemperature(), sensorConfig.getHumidity());
+        }
+    }
+
+    private static void UpdateViews(long sensorId, Double temperature, Double humidity) {
+        if (mTextViewListeners.containsKey(sensorId)) {
+            for(Pair<TextView, TextView> sensorViews : mTextViewListeners.get(sensorId).values()) {
+                Log.d("MonitorRoom", "Updating sensor " + sensorId);
+                Context context = sensorViews.first.getContext();
+                // Temperature
+                sensorViews.first.setText(temperature != null ? String.format("%.1f F", temperature) : context.getString(R.string.temperature_place_holder));
+                // Humidity
+                sensorViews.second.setText(humidity != null ? String.format("%.1f %%", humidity) : context.getString(R.string.humidity_place_holder));
+            }
+        }
     }
 
     @Override
@@ -190,33 +196,31 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
         this.configure(context);
 
         // Update Room Temperature
-        new Update(context).execute();
+        for (SensorConfig sensorConfig: SensorConfig.GetMap(context).values()) {
+            new Update(context, sensorConfig).execute();
+        }
 
     }
 
-    private void checkAlarm(Context context) {
+    private void checkAlarm(Context context, SensorConfig sensorConfig) {
         try {
             // Check min/max temp
-            HashMap<String, RoomConfig> roomConfigs = RoomConfig.GetMap(context);
-            for (RoomConfig roomConfig : roomConfigs.values()) {
-                AlarmConfig alarmConfig = new AlarmConfig(context, roomConfig.mRoomName);
-                if (mAlarmActivated && MeasureIsValid(roomConfig) && !inQuietPeriod(roomConfig)) {
-                    for (AlarmConfig.Alarm alarm : alarmConfig.read()) {
-                        if (alarm.mAlarmActive && exceedThreshold(roomConfig, alarm)) {
-                            roomConfig.updateAlarm();
-                            Log.d("MonitorRoom", "Firing alarm!");
-                            Intent alarmIntent = new Intent(context, AlarmActivity.class);
-                            Bundle args = new Bundle();
-                            // Setup the alarm
-                            alarmIntent.putExtra("room", roomConfig.mRoomName);
-                            alarmIntent.putExtra("max_temperature", alarm.mMaxTemp);
-                            alarmIntent.putExtra("min_temperature", alarm.mMinTemp);
-                            alarmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            context.startActivity(alarmIntent);
+            AlarmConfig alarmConfig = new AlarmConfig(context, sensorConfig.getId());
+            if (mAlarmActivated && !sensorConfig.measureHasExpired() && !inQuietPeriod(sensorConfig)) {
+                for (AlarmConfig.Alarm alarm : alarmConfig.read()) {
+                    if (alarm.mAlarmActive && exceedThreshold(sensorConfig, alarm)) {
+                        sensorConfig.updateAlarm();
+                        Log.d("MonitorRoom", "Firing alarm!");
+                        Intent alarmIntent = new Intent(context, AlarmActivity.class);
+                        Bundle args = new Bundle();
+                        // Setup the alarm
+                        alarmIntent.putExtra("sensor_id", sensorConfig.getId());
+                        alarmIntent.putExtra("max_temperature", alarm.mMaxTemp);
+                        alarmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        context.startActivity(alarmIntent);
 
-                            // No need to start alarm several time
-                            return;
-                        }
+                        // No need to start alarm several time
+                        return;
                     }
                 }
             }
@@ -225,21 +229,15 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
         }
     }
 
-    private boolean inQuietPeriod(RoomConfig roomConfig) {
-        return roomConfig.mLastAlarm + mQuietPeriod > System.currentTimeMillis();
+    private boolean inQuietPeriod(SensorConfig sensorConfig) {
+        return sensorConfig.getLastAlarm() + mQuietPeriod > System.currentTimeMillis();
     }
 
-    static private boolean MeasureIsValid(RoomConfig roomConfig) {
-        long currentTime = System.currentTimeMillis();
-        // Measure expired?
-        return roomConfig.mLastUpdate + mTempMeasureExpirationTime > currentTime;
-    }
-
-    private boolean exceedThreshold(RoomConfig roomConfig, AlarmConfig.Alarm alarm) throws JSONException {
+    private boolean exceedThreshold(SensorConfig sensorConfig, AlarmConfig.Alarm alarm) throws JSONException {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
         Integer nowMinutes = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE);
-        Float temperature = roomConfig.mData.has("temperature") ? Float.parseFloat(roomConfig.mData.getString("temperature")) : null;
+        Double temperature = sensorConfig.getTemperature();
         return isAlarmEnable(alarm, nowMinutes) && temperature != null && (temperature > alarm.mMaxTemp || temperature < alarm.mMinTemp);
     }
 
@@ -258,33 +256,24 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
 
     public void configure(Context context) {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
-        mRestClient = new RestClient(context);
-        mRestClient.configure(sharedPreferences);
 
         mAlarmActivated = sharedPreferences.getBoolean("temperature_alarm", false);
 
     }
 
 
-    static public void Register(String room, String key, TextView tempTextView, TextView humidityTextView) {
+    static public void Register(long sensorId, String key, TextView tempTextView, TextView humidityTextView) {
         try {
 
-            if (!mTextViewListeners.containsKey(room)) {
-                mTextViewListeners.put(room, new HashMap<String, Pair<TextView, TextView>>());
+            if (!mTextViewListeners.containsKey(sensorId)) {
+                mTextViewListeners.put(sensorId, new HashMap<String, Pair<TextView, TextView>>());
             }
-            mTextViewListeners.get(room).put(key, new Pair<TextView, TextView>(tempTextView, humidityTextView));
+            mTextViewListeners.get(sensorId).put(key, new Pair<TextView, TextView>(tempTextView, humidityTextView));
 
             // Update display
-            HashMap<String, RoomConfig> roomConfigHashMap = RoomConfig.GetMap(tempTextView.getContext());
-            if (roomConfigHashMap.containsKey(room)) {
-                RoomConfig roomConfig = roomConfigHashMap.get(room);
-                Float temperature = roomConfig.mData.has("temperature") ? Float.parseFloat(roomConfig.mData.getString("temperature")) : null;
-                Float humidity = roomConfig.mData.has("humidity") ? Float.parseFloat(roomConfig.mData.getString("humidity")) : null;
-                // Measure expired?
-                if (MeasureIsValid(roomConfig)) {
-                    UpdateViews(room, temperature, humidity);
-                }
-            }
+            SensorConfig sensorConfig = new SensorConfig(tempTextView.getContext(), sensorId);
+            sensorConfig.read();
+            UpdateViews(sensorId, sensorConfig.getTemperature(), sensorConfig.getHumidity());
 
         }
         catch (Exception e) {
@@ -292,29 +281,29 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
         }
     }
 
-    static public void Unregister(String room, String key) {
-        if (mTextViewListeners.containsKey(room) &&  mTextViewListeners.get(room).containsKey(key)) {
-            mTextViewListeners.get(room).remove(key);
+    static public void Unregister(long sensorId, String key) {
+        if (mTextViewListeners.containsKey(sensorId) &&  mTextViewListeners.get(sensorId).containsKey(key)) {
+            mTextViewListeners.get(sensorId).remove(key);
         }
     }
 
-    static public void AddPostUpdateCallback(String room, String key, Runnable callback) {
-        mPostUpdateCallbacks.put(room + "_" + key, callback);
+    static public void AddPostUpdateCallback(long sensorId, String key, Runnable callback) {
+        mPostUpdateCallbacks.put(sensorId + "_" + key, callback);
     }
 
-    static public void RemovePostUpdateCallback(String room, String key) {
-        if (mPostUpdateCallbacks.containsKey(room + "_" + key)) {
-            mPostUpdateCallbacks.remove(room + "_" + key);
+    static public void RemovePostUpdateCallback(long sensorId, String key) {
+        if (mPostUpdateCallbacks.containsKey(sensorId + "_" + key)) {
+            mPostUpdateCallbacks.remove(sensorId  + "_" + key);
         }
     }
 
-    static public void AddPreUpdateCallback(String room, String key, Runnable callback) {
-        mPreUpdateCallbacks.put(room + "_" + key, callback);
+    static public void AddPreUpdateCallback(long sensorId, String key, Runnable callback) {
+        mPreUpdateCallbacks.put(sensorId + "_" + key, callback);
     }
 
-    static public void RemovePreUpdateCallback(String room, String key) {
-        if (mPreUpdateCallbacks.containsKey(room + "_" + key)) {
-            mPreUpdateCallbacks.remove(room + "_" + key);
+    static public void RemovePreUpdateCallback(long sensorId, String key) {
+        if (mPreUpdateCallbacks.containsKey(sensorId + "_" + key)) {
+            mPreUpdateCallbacks.remove(sensorId  + "_" + key);
         }
     }
 

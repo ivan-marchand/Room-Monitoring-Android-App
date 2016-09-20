@@ -113,9 +113,8 @@ public class DeviceFragment extends Fragment implements View.OnClickListener {
             }
 
             // Configure the REST client
-            mRestClient = new RestClient(this.getActivity());
-            SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getActivity());
-            mRestClient.configure(sharedPref);
+            //mRestClient = new RestClient(this.getActivity());
+            //SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getActivity());
 
         } catch (Exception e) {
 
@@ -126,7 +125,7 @@ public class DeviceFragment extends Fragment implements View.OnClickListener {
     protected class SendIRCommand extends AsyncTask<String, Void, JSONObject> {
 
         protected JSONObject doInBackground(String... strings) {
-            return mRestClient.get("/api/v1/sendIRCommand/"+ mName + "/" + strings[0]);
+            return mRestClient.getJson("/api/v1/sendIRCommand/"+ mName + "/" + strings[0]);
         }
 
         protected void onPostExecute(JSONObject result) {
