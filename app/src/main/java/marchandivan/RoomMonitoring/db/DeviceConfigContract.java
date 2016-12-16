@@ -18,6 +18,7 @@ public class DeviceConfigContract {
         public static final String COLUMN_NAME_HTTPS = "https";
         public static final String COLUMN_NAME_HOST = "host";
         public static final String COLUMN_NAME_PORT = "port";
+        public static final String COLUMN_NAME_PATH = "path";
         public static final String COLUMN_NAME_AUTH_CONFIG = "auth_config";
     }
 }

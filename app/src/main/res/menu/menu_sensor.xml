@@ -1,0 +1,20 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="marchandivan.RoomMonitoring.MainActivity">
+    <item
+        android:title="test"
+        android:id="@+id/action_more"
+        android:icon="@drawable/ic_menu_more_white"
+        android:orderInCategory="100"
+        app:showAsAction="ifRoom">
+        <menu>
+            <item android:id="@+id/edit_sensor_name" android:title="@string/edit_sensor_name" android:icon="@drawable/ic_menu_edit"
+                android:orderInCategory="100" app:showAsAction="never" >
+            </item>
+            <item android:id="@+id/remove_sensor" android:title="@string/remove_sensor" android:icon="@drawable/ic_menu_remove"
+                android:orderInCategory="100" app:showAsAction="never" >
+            </item>
+        </menu>
+    </item>
+</menu>

@@ -15,11 +15,16 @@ public class SensorFactory {
 
     static {
         Register(new RaspberryPi());
-        Register(new SensiThermostat());
+        //Register(new SensiThermostat());
+        Register(new GenericRestJsonApi());
     }
 
     static public ArrayList<String> GetTypes() {
         return new ArrayList<String>(sensorMap.keySet());
+    }
+
+    static public HashMap<String, Sensor> GetSensorMap() {
+        return sensorMap;
     }
 
     static public Sensor Get(String type) {
@@ -28,6 +33,7 @@ public class SensorFactory {
                 return sensorMap.get(type);
             }
         } catch (Exception e) {
+            e.printStackTrace();
         }
         return null;
     }

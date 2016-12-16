@@ -6,38 +6,39 @@ import android.net.Uri;
 import android.util.Log;
 
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.net.CookieManager;
 import java.net.HttpCookie;
 import java.net.HttpURLConnection;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
-import marchandivan.RoomMonitoring.R;
 import marchandivan.RoomMonitoring.db.DeviceConfig;
 import marchandivan.RoomMonitoring.db.SensorConfig;
 import marchandivan.RoomMonitoring.http.RestClient;
+
+import static marchandivan.RoomMonitoring.db.SensorConfig.ModeToString;
 
 /**
  * Created by ivan on 9/5/16.
  */
 public class SensiThermostat extends Sensor {
     private HashMap<Long, String> mConnectionTokens = new HashMap<>();
+    private HashMap<Long, String> mGroupsTokens = new HashMap<>();
     private HashMap<Long, String> mMessageId = new HashMap<>();
-    private HashMap<String, JSONArray> mMeasureCache = new HashMap<>();
+    private HashMap<Long, HashMap<String, JSONObject>> mMeasureCache = new HashMap<>();
+    private HashMap<Long, Integer> mSessionIterator = new HashMap<>();
 
     public SensiThermostat() {
-        super(Type.THERMOSTAT);
+        super();
     }
 
-    @Override
-    public int getIcon() {
+    /*@Override
+    /public int getIcon() {
         return R.drawable.sensi_logo;
-    }
+    }*/
 
     @Override
     public String getDisplayName() {
@@ -48,18 +49,45 @@ public class SensiThermostat extends Sensor {
         return AuthType.USER_PASSWORD;
     }
 
+    public AuthEncoding getAuthEncoding() {
+        return AuthEncoding.NONE;
+    }
+
     public boolean needHostUrl() {
         return false;
     }
 
-    public RestClient getRestClient(Context context, DeviceConfig deviceConfig, boolean needConnectionToken, boolean needMessageId) {
+    private void clearCache(DeviceConfig deviceConfig) {
+        mConnectionTokens.remove(deviceConfig.getId());
+        mGroupsTokens.remove(deviceConfig.getId());
+        mMessageId.remove(deviceConfig.getId());
+        mMeasureCache.remove(deviceConfig.getId());
+        mSessionIterator.remove(deviceConfig.getId());
+    }
+
+    private Integer getNextSessionIterator(DeviceConfig deviceConfig) {
+        Integer iterator = 0;
+        if (mSessionIterator.containsKey(deviceConfig.getId())) {
+            iterator = mSessionIterator.get(deviceConfig.getId());
+            iterator++;
+        }
+        mSessionIterator.put(deviceConfig.getId(), iterator);
+        return iterator;
+    }
+
+    private RestClient getRestClient(Context context, DeviceConfig deviceConfig, boolean needConnectionToken, boolean needMessageId) {
         RestClient restClient = new RestClient(context, true, "bus-serv.sensicomfort.com", 443);
 
         // ConnectionToken
         if (needConnectionToken && mConnectionTokens.containsKey(deviceConfig.getId())) {
             restClient.addUrlParam("transport", "longPolling");
             restClient.addUrlParam("connectionToken", mConnectionTokens.get(deviceConfig.getId()));
+            // GroupsToken
+            if (mGroupsTokens.containsKey(deviceConfig.getId())) {
+                restClient.addUrlParam("groupsToken", mGroupsTokens.get(deviceConfig.getId()));
+            }
         }
+
 
         // Message Id
         if (needMessageId && mMessageId.containsKey(deviceConfig.getId())) {
@@ -72,9 +100,6 @@ public class SensiThermostat extends Sensor {
         restClient.setRequestProperty("X-Requested-With", "XMLHttpRequest");
 
         // Setup cookies
-        for (HttpCookie cookie: GetCookieManager(deviceConfig).getCookieStore().getCookies()) {
-            Log.d("SensiThermostat", cookie.toString());
-        }
         restClient.setHttpRequestCookies(GetCookieManager(deviceConfig).getCookieStore().getCookies());
 
         return restClient;
@@ -87,6 +112,9 @@ public class SensiThermostat extends Sensor {
 
     private ConnectionResult login(Context context, DeviceConfig deviceConfig) {
         try {
+            // Clear cache from previous connection
+            clearCache(deviceConfig);
+            // Get new RestClient
             RestClient restClient = getRestClient(context, deviceConfig, false, false);
             // Build the json to post : {"UserName": "user", "Password": "password"}
             JSONObject postData = new JSONObject();
@@ -137,6 +165,7 @@ public class SensiThermostat extends Sensor {
             }
         } catch (Exception e) {
             // Ignore
+            e.printStackTrace();
         }
     }
 
@@ -145,19 +174,16 @@ public class SensiThermostat extends Sensor {
         // Login if necessary
         if (GetCookieManager(deviceConfig).getCookieStore().getCookies().isEmpty()) {
             login(context, deviceConfig);
-            // Force negociation
-            mConnectionTokens.remove(deviceConfig.getId());
         }
 
         // Negociate if necessary
         if (!mConnectionTokens.containsKey(deviceConfig.getId())) {
             negotiate(context, deviceConfig);
             connect(context, deviceConfig);
-            subscribe(context, deviceConfig);
         }
     }
 
-    private void subscribe(Context context, DeviceConfig deviceConfig) {
+    private void subscribe(Context context, DeviceConfig deviceConfig, List<SensorConfig> sensorConfigs) {
         // Get Rest client
         RestClient restClient = getRestClient(context, deviceConfig, true, false);
 
@@ -166,9 +192,11 @@ public class SensiThermostat extends Sensor {
         try {
             postData.put("H", "thermostat-v1");
             postData.put("M", "Subscribe");
-            postData.put("I", 0);
+            postData.put("I", getNextSessionIterator(deviceConfig));
             JSONArray icds = new JSONArray();
-            icds.put("36-6f-92-ff-fe-03-fd-34");
+            for (SensorConfig sensorConfig: sensorConfigs) {
+                icds.put(sensorConfig.getConfigString("ICD"));
+            }
             postData.put("A", icds);
         } catch (Exception e) {
             // Ignore
@@ -177,41 +205,251 @@ public class SensiThermostat extends Sensor {
         restClient.post("/realtime/send", "application/x-www-form-urlencoded; charset=UTF-8", "data=" + Uri.encode(postData.toString()));
     }
 
-    public JSONObject getSensorMeasure(Context context, SensorConfig sensorConfig) {
-        // Get associated device config
-        DeviceConfig deviceConfig = new DeviceConfig(context, sensorConfig.getDeviceId());
-        deviceConfig.read();
-
-        // Init connection
-        initConnection(context, deviceConfig);
-
-        // Get Rest client
-        RestClient restClient = getRestClient(context, deviceConfig, true, true);
-        JSONObject result = restClient.getJson("/realtime/poll");
-
-        // Get temp and humidity
-        JSONObject measure = new JSONObject();
+    protected void setThermostatImpl(Context context, DeviceConfig deviceConfig, SensorConfig sensorConfig, SensorConfig.ThermostatMode mode, Integer temperature) {
         try {
-            JSONArray M = result.getJSONArray("M");
-            if (M.length() == 0) {
-                // Use cache as there is no update from the server
-                M = mMeasureCache.get("36-6f-92-ff-fe-03-fd-34");
-            } else {
-                // Update cache
-                mMeasureCache.put("36-6f-92-ff-fe-03-fd-34", M);
+            // Get Rest client
+            RestClient restClient = getRestClient(context, deviceConfig, true, false);
+
+            // Get/Create caches
+            if (!mMeasureCache.containsKey(deviceConfig.getId())) {
+                mMeasureCache.put(deviceConfig.getId(), new HashMap<String, JSONObject>());
             }
-            // Any measure?
-            if (M.length() > 0) {
-                JSONObject operationalStatus = M.getJSONObject(0).getJSONArray("A").getJSONObject(1).getJSONObject("OperationalStatus");
-                double temperature = operationalStatus.getJSONObject("Temperature").getInt("F");
-                double humidity = operationalStatus.getInt("Humidity");
-                measure.put("temperature", temperature);
-                measure.put("humidity", humidity);
+            HashMap<String, JSONObject> jsonCache = mMeasureCache.get(deviceConfig.getId());
+            String icd = sensorConfig.getConfigString("ICD");
+            if (!jsonCache.containsKey(icd)) {
+                jsonCache.put(icd, new JSONObject());
+            }
+            JSONObject thermostatCache = jsonCache.get(icd);
+            if (!thermostatCache.has("EnvironmentControls")) {
+                thermostatCache.put("EnvironmentControls", new JSONObject());
+            }
+            JSONObject environmentControls = jsonCache.get(icd).getJSONObject("EnvironmentControls");
+
+            // Build data to be posted and update cache
+            JSONObject postData = new JSONObject();
+            postData.put("H", "thermostat-v1");
+            if (temperature != null) {
+                int C = (int) F2C(temperature);
+                switch (mode) {
+                    case HEAT:
+                        JSONObject heatSetPoint = new JSONObject();
+                        heatSetPoint.put("F", temperature);
+                        heatSetPoint.put("C", C);
+                        environmentControls.put("HeatSetpoint", heatSetPoint);
+                        postData.put("M", "SetHeat");
+                        break;
+                    case COOL:
+                        JSONObject coolSetPoint = environmentControls.getJSONObject("CoolSetpoint");
+                        coolSetPoint.put("F", temperature);
+                        coolSetPoint.put("C", C);
+                        environmentControls.put("CoolSetpoint", coolSetPoint);
+                        postData.put("M", "SetCool");
+                        break;
+                }
+                postData.put("I", getNextSessionIterator(deviceConfig));
+                JSONArray param = new JSONArray();
+                param.put(icd);
+                param.put(temperature);
+                param.put("F");
+                postData.put("A", param);
+            } else {
+                postData.put("M", "SetSystemMode");
+                postData.put("I", getNextSessionIterator(deviceConfig));
+                JSONArray param = new JSONArray();
+                param.put(sensorConfig.getConfigString("ICD"));
+                switch (mode) {
+                    case HEAT:
+                        environmentControls.put("SystemMode", "Heat");
+                        param.put("Heat");
+                        break;
+                    case COOL:
+                        environmentControls.put("SystemMode", "Cool");
+                        param.put("Cool");
+                        break;
+                    case OFF:
+                    default:
+                        environmentControls.put("SystemMode", "Off");
+                        param.put("Off");
+                        break;
+                }
+                postData.put("A", param);
+            }
+            Log.d("SensiThermostat", "POST Json : " + postData.toString());
+            restClient.post("/realtime/send", "application/x-www-form-urlencoded; charset=UTF-8", "data=" + Uri.encode(postData.toString()));
+            if (restClient.getHttpStatusCode() != HttpURLConnection.HTTP_OK) {
+                // Reset Connection in case of failure
+                clearCache(deviceConfig);
+                initConnection(context, deviceConfig);
+
+                // Try again
+                restClient.post("/realtime/send", "application/x-www-form-urlencoded; charset=UTF-8", "data=" + Uri.encode(postData.toString()));
+            }
+
+            // Update cache
+            thermostatCache.put("EnvironmentControls", environmentControls);
+            jsonCache.put(icd, thermostatCache);
+            mMeasureCache.put(deviceConfig.getId(), jsonCache);
+
+        } catch (Exception e) {
+            // Ignore
+            e.printStackTrace();
+        }
+    }
+
+    private void updateCache(DeviceConfig deviceConfig, JSONObject result) {
+        try {
+            if (!mMeasureCache.containsKey(deviceConfig.getId())) {
+                mMeasureCache.put(deviceConfig.getId(), new HashMap<String, JSONObject>());
+            }
+            HashMap<String, JSONObject> jsonCache = mMeasureCache.get(deviceConfig.getId());
+            if (result.has("M")) {
+                JSONArray M = result.getJSONArray("M");
+                // Any measure?
+                for (int i = 0; i < M.length(); i++) {
+                    JSONObject thermostatConfig = M.getJSONObject(i);
+                    JSONObject thermostatStatus = thermostatConfig.getJSONArray("A").getJSONObject(1);
+                    String icd = thermostatConfig.getJSONArray("A").getString(0);
+                    // Update Cache
+                    if (thermostatConfig.getString("M").equals("online") || !jsonCache.containsKey(icd)) {
+                        jsonCache.put(icd, thermostatStatus);
+                    } else {
+                        // Update cache
+                        Iterator<String> keys = thermostatStatus.keys();
+                        while (keys.hasNext()) {
+                            String key = keys.next();
+                            if (!jsonCache.get(icd).has(key)) {
+                                jsonCache.get(icd).put(key, thermostatStatus.get(key));
+                            } else {
+                                Iterator<String> subKeys = thermostatStatus.getJSONObject(key).keys();
+                                while (subKeys.hasNext()) {
+                                    String subKey = subKeys.next();
+                                    jsonCache.get(icd).getJSONObject(key).put(subKey, thermostatStatus.getJSONObject(key).get(subKey));
+                                }
+                            }
+                        }
+                    }
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return measure;
+    }
+
+    void updateSensorConfig(DeviceConfig deviceConfig, SensorConfig sensorConfig) {
+        try {
+            if (mMeasureCache.containsKey(deviceConfig.getId())) {
+                HashMap<String, JSONObject> jsonCache = mMeasureCache.get(deviceConfig.getId());
+                String icd = sensorConfig.getConfigString("ICD");
+                if (icd != null && jsonCache.containsKey(icd)) {
+                    // Get temp and humidity
+                    JSONObject data = new JSONObject();
+                    Log.d("SensiThermostat", "Cache : " + jsonCache.get(icd).toString());
+                    if (jsonCache.get(icd).has("OperationalStatus")) {
+                        JSONObject operationalStatus = jsonCache.get(icd).getJSONObject("OperationalStatus");
+                        double temperature = operationalStatus.getJSONObject("Temperature").getInt("F");
+                        double humidity = operationalStatus.getInt("Humidity");
+                        data.put("temperature", temperature);
+                        data.put("humidity", humidity);
+                    }
+
+                    // Heater/AC config
+                    if (jsonCache.get(icd).has("EnvironmentControls")) {
+                        JSONObject thermostat = new JSONObject();
+                        JSONObject environmentControls = jsonCache.get(icd).getJSONObject("EnvironmentControls");
+                        if (environmentControls.has("SystemMode")) {
+                            switch (environmentControls.getString("SystemMode")) {
+                                case "Heat":
+                                    JSONObject heatSetPoint = environmentControls.getJSONObject("HeatSetpoint");
+                                    thermostat.put("temperature", heatSetPoint.get("F"));
+                                    thermostat.put("mode", "HEAT");
+                                    break;
+                                case "Cool":
+                                    JSONObject coolSetPoint = environmentControls.getJSONObject("CoolSetpoint");
+                                    thermostat.put("temperature", coolSetPoint.get("F"));
+                                    thermostat.put("mode", "COOL");
+                                    break;
+                                case "Off":
+                                default:
+                                    thermostat.put("mode", "OFF");
+                                    break;
+                            }
+                        }
+                        if (thermostat.length() != 0) {
+                            data.put("thermostat", thermostat);
+                        }
+                    }
+
+                    Log.d("SensiThermostat", "Update sensor " + sensorConfig.getId() + " " + sensorConfig.getName());
+                    sensorConfig.update(data);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void updateSensor(Context context, DeviceConfig deviceConfig, List<SensorConfig> sensorConfigs) {
+        // Init connection
+        initConnection(context, deviceConfig);
+        if (!mGroupsTokens.containsKey(deviceConfig.getId())) {
+            subscribe(context, deviceConfig, sensorConfigs);
+        }
+
+        // Get Rest client
+        RestClient restClient = getRestClient(context, deviceConfig, true, true);
+        JSONObject result = restClient.getJson("/realtime/poll");
+        if (restClient.getHttpStatusCode() != HttpURLConnection.HTTP_OK || result.length() == 0) {
+            // Reset Connection in case of failure
+            clearCache(deviceConfig);
+            initConnection(context, deviceConfig);
+
+            // Try again
+            result = restClient.getJson("/realtime/poll");
+        }
+
+        try {
+            // Update message Id
+            if (result.has("C") && result.get("C") instanceof String) {
+                mMessageId.put(deviceConfig.getId(), result.getString("C"));
+            }
+            // Update groups token
+            if (result.has("G") && result.get("G") instanceof String) {
+                mGroupsTokens.put(deviceConfig.getId(), result.getString("G"));
+            }
+
+            // Update thermostat status
+            updateCache(deviceConfig, result);
+
+            // Update sensor config
+            for (SensorConfig sensorConfig : sensorConfigs) {
+                updateSensorConfig(deviceConfig, sensorConfig);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public boolean addSensors(Context context, final DeviceConfig deviceConfig) {
+        boolean result = false;
+        // Init connection
+        initConnection(context, deviceConfig);
+
+        RestClient restClient = getRestClient(context, deviceConfig, false, false);
+        JSONArray thermostats = restClient.getJsonArray("/api/thermostats");
+        for (int i = 0 ; i < thermostats.length() ; i++) {
+            try {
+                JSONObject thermostat = thermostats.getJSONObject(i);
+                if (thermostat.has("DeviceName") && thermostat.get("DeviceName") instanceof String) {
+                    SensorConfig sensorConfig = new SensorConfig(context, thermostat.getString("DeviceName"), SensorConfig.Type.THERMOSTAT, deviceConfig.getId(), thermostat);
+                    sensorConfig.add();
+                    result = true;
+                }
+            } catch (Exception e) {
+                // Ignore
+                e.printStackTrace();
+            }
+        }
+        return result;
     }
 
     public ArrayList<ConfigField> getConfigFields() {
@@ -220,32 +458,13 @@ public class SensiThermostat extends Sensor {
         return fields;
     }
 
-    public ArrayList<String> getTextFieldValuesImpl(Context context, final DeviceConfig deviceConfig, final String key) {
-
-        // Init connection
-        initConnection(context, deviceConfig);
-
-        ArrayList<String> result = null;
-        RestClient restClient = getRestClient(context, deviceConfig, false, false);
-        switch (key) {
-            case "thermostat":
-                result = new ArrayList<>();
-                JSONArray thermostats = restClient.getJsonArray("/api/thermostats");
-                for (int i = 0 ; i < thermostats.length() ; i++) {
-                    try {
-                        JSONObject thermostat = thermostats.getJSONObject(i);
-                        if (thermostat.has("DeviceName") && thermostat.get("DeviceName") instanceof String) {
-                            result.add(thermostat.getString("DeviceName"));
-                        }
-                    } catch (Exception e) {
-                        // Ignore
-                    }
-                }
-                break;
-            default:
-                break;
-        }
-        return result;
+    // Converts to celcius
+    private double F2C(double fahrenheit) {
+        return ((fahrenheit - 32) * 5 / 9);
     }
 
+    // Converts to fahrenheit
+    private double C2F(double celsius) {
+        return ((celsius * 9) / 5) + 32;
+    }
 }

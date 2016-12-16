@@ -14,6 +14,7 @@ public class ConfigDbHelper extends SQLiteOpenHelper {
                     SensorConfigContract.SensorEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
                     SensorConfigContract.SensorEntry.COLUMN_NAME_SENSOR + " TEXT," +
                     SensorConfigContract.SensorEntry.COLUMN_NAME_TYPE + " TEXT," +
+                    SensorConfigContract.SensorEntry.COLUMN_NAME_VISIBLE + " INTEGER," +
                     SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_UPDATE + " INTEGER," +
                     SensorConfigContract.SensorEntry.COLUMN_NAME_LAST_ALARM + " INTEGER," +
                     SensorConfigContract.SensorEntry.COLUMN_NAME_DATA + " TEXT," +
@@ -29,6 +30,7 @@ public class ConfigDbHelper extends SQLiteOpenHelper {
                     DeviceConfigContract.DeviceEntry.COLUMN_NAME_HTTPS + " INTEGER," +
                     DeviceConfigContract.DeviceEntry.COLUMN_NAME_HOST + " TEXT," +
                     DeviceConfigContract.DeviceEntry.COLUMN_NAME_PORT + " INTEGER," +
+                    DeviceConfigContract.DeviceEntry.COLUMN_NAME_PATH + " TEXT," +
                     DeviceConfigContract.DeviceEntry.COLUMN_NAME_AUTH_CONFIG + " TEXT" +
                     ")";
 
@@ -53,7 +55,7 @@ public class ConfigDbHelper extends SQLiteOpenHelper {
             "DROP TABLE IF EXISTS " + AlarmConfigContract.AlarmEntry.TABLE_NAME;
 
     // If you change the database schema, you must increment the database version.
-    public static final int DATABASE_VERSION = 2;
+    public static final int DATABASE_VERSION = 4;
     public static final String DATABASE_NAME = "Config.db";
 
     public ConfigDbHelper(Context context) {

@@ -8,10 +8,14 @@ import org.json.JSONObject;
 import java.net.CookieManager;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
+import marchandivan.RoomMonitoring.R;
 import marchandivan.RoomMonitoring.db.DeviceConfig;
 import marchandivan.RoomMonitoring.db.SensorConfig;
 import marchandivan.RoomMonitoring.http.RestClient;
+
+import static marchandivan.RoomMonitoring.db.SensorConfig.ModeToString;
 
 /**
  * Created by ivan on 9/5/16.
@@ -61,40 +65,10 @@ public abstract class Sensor {
         return msCookieManagers.get(deviceConfig.getId());
     }
 
-    public enum Type {
-        THERMOMETER, THERMOSTAT
-    }
-
-    public static String ToString(Type type) {
-        switch (type) {
-            case THERMOMETER:
-                return "thermometer";
-            case THERMOSTAT:
-                return "thermostat";
-        }
-        return "";
-    }
-
-    public static Type FromString(final String string) {
-        switch (string) {
-            case "thermostat":
-                return Type.THERMOSTAT;
-            case "thermometer":
-                return Type.THERMOMETER;
-        }
-        return Type.THERMOMETER;
-    }
-
     private String mDeviceType;
-    private Type mType;
 
-    public Sensor(final Type type) {
+    public Sensor() {
         mDeviceType = this.getClass().getSimpleName();
-        mType = type;
-    }
-
-    public Type getType() {
-        return mType;
     }
 
     public final String getDeviceType() {
@@ -106,19 +80,34 @@ public abstract class Sensor {
         return mDeviceType;
     }
 
+    // Get Authentication type
     public enum AuthType {
         NONE, USER_PASSWORD, TOKEN
     }
-
-    // Get Authentication type
     public abstract AuthType getAuthType();
+
+    // Get Authentication url
+    public enum AuthEncoding {
+        NONE, HEADER, URL
+    }
+    public abstract AuthEncoding getAuthEncoding();
 
     // Sensor need Host URL config?
     public abstract boolean needHostUrl();
 
+    // Sensor need URL Base Path config?
+    public boolean needBasePath() {
+        return false;
+    }
+
+    // Are Credential Mandatory?
+    public boolean mandatoryCredential() {
+        return true;
+    }
+
     // Icon
     public int getIcon() {
-        return 0;
+        return R.drawable.thermometer;
     }
 
     // Login
@@ -129,7 +118,19 @@ public abstract class Sensor {
     public RestClient getRestClient(Context context, final DeviceConfig deviceConfig) {
         RestClient restClient = new RestClient(context, deviceConfig.isHttps(), deviceConfig.getHost(), deviceConfig.getPort());
         if (this.getAuthType() == AuthType.USER_PASSWORD && deviceConfig.getUser() != null && deviceConfig.getPassword() != null) {
-            restClient.setUserPassword(deviceConfig.getUser(), deviceConfig.getPassword());
+            switch (this.getAuthEncoding()) {
+                case HEADER:
+                    restClient.setUserPassword(deviceConfig.getUser(), deviceConfig.getPassword());
+                    break;
+                case URL:
+                    if (deviceConfig.getUser() != null && deviceConfig.getPassword() != null) {
+                        restClient.addUrlParam("username", deviceConfig.getUser());
+                        restClient.addUrlParam("password", deviceConfig.getPassword());
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
         return restClient;
     }
@@ -145,24 +146,74 @@ public abstract class Sensor {
         return needHostUrl() ? ConnectionResult.FAILURE : ConnectionResult.SUCCESS;
     }
 
-    public abstract JSONObject getSensorMeasure(Context context, SensorConfig sensorConfig);
+    public abstract boolean addSensors(Context context, final DeviceConfig deviceConfig);
+
+    public boolean save(final Context context, final DeviceConfig deviceConfig) {
+        boolean result = false;
+        // Store device config in Db
+        deviceConfig.add();
+
+        AsyncTask<Void, Void, Boolean> addSensorsTask = new AsyncTask<Void, Void, Boolean>() {
+            @Override
+            protected Boolean doInBackground(Void... params) {
+                return addSensors(context, deviceConfig);
+            }
+        };
+        try {
+            addSensorsTask.execute();
+            if (addSensorsTask.get()) {
+                result = true;
+            } else {
+                // In case of error, roll back
+                deviceConfig.delete();
+            }
+        } catch (Exception e) {
+            // In case of error, roll back device config
+            deviceConfig.delete();
+        }
+        return result;
+    }
+
+    public abstract void updateSensor(Context context, DeviceConfig deviceConfig, List<SensorConfig> sensorConfigs);
+
+    protected void setThermostatImpl(Context context, DeviceConfig deviceConfig, SensorConfig sensorConfig, SensorConfig.ThermostatMode mode, Integer temperature) {
+    }
+
+    public void setThermostat(final Context context,
+                              final DeviceConfig deviceConfig,
+                              final SensorConfig sensorConfig,
+                              final SensorConfig.ThermostatMode mode,
+                              final Integer temperature,
+                              final Runnable updateDisplayTask) {
+        try {
+            AsyncTask<Void, Void, Void> setThermostatTask = new AsyncTask<Void, Void, Void>() {
+                @Override
+                protected Void doInBackground(Void... params) {
+                    setThermostatImpl(context, deviceConfig, sensorConfig, mode, temperature);
+                    return null;
+                }
+            };
+
+            // Run the thread
+            setThermostatTask.execute();
+
+            // Update sensor cache
+            JSONObject data = sensorConfig.getData();
+            JSONObject thermostat = data.has("thermostat") ? data.getJSONObject("thermostat") : new JSONObject();
+            thermostat.put("mode", ModeToString(mode));
+            if (temperature != null) {
+                thermostat.put("temperature", temperature);
+            }
+            data.put("thermostat", thermostat);
+            sensorConfig.update(data);
+
+            // Update display
+            updateDisplayTask.run();
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     public abstract ArrayList<ConfigField> getConfigFields();
 
-    // Get possible value of a field for autocompletion
-    public abstract ArrayList<String> getTextFieldValuesImpl(Context context, final DeviceConfig deviceConfig, final String key);
-    public ArrayList<String> getTextFieldValues(final Context context, final DeviceConfig deviceConfig, final String key) {
-        AsyncTask<Void, Void, ArrayList<String>> asyncTask = new AsyncTask<Void, Void, ArrayList<String>>() {
-            @Override
-            protected ArrayList<String> doInBackground(Void... params) {
-                return getTextFieldValuesImpl(context, deviceConfig, key);
-            }
-        };
-        asyncTask.execute();
-        try {
-            return asyncTask.get();
-        } catch (Exception e) {
-            return null;
-        }
-    }
 }

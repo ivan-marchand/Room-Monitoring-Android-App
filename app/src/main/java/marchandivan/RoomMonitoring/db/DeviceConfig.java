@@ -22,6 +22,7 @@ public class DeviceConfig {
     private Boolean mHttps;
     private String mHost;
     private Integer mPort;
+    private String mBasePath;
     private JSONObject mAuthConfig = new JSONObject();
 
 
@@ -49,12 +50,21 @@ public class DeviceConfig {
         return mPort;
     }
 
+    public final String getBasePath() {
+        return mBasePath;
+    }
+
+    public String toString()
+    {
+        return String.format("%s (%d)", mDeviceName, mId);
+    }
+
     public void setUserPassword(final String user, final String password) {
         try {
             mAuthConfig.put("user", user);
             mAuthConfig.put("password", password);
         } catch (Exception e) {
-
+            e.printStackTrace();
         }
     }
 
@@ -102,7 +112,7 @@ public class DeviceConfig {
         cursor.moveToFirst();
         for (int i = 0 ; i < cursor.getCount() ; i++) {
             Long id = cursor.getLong(cursor.getColumnIndexOrThrow(DeviceConfigContract.DeviceEntry._ID));
-            Log.d("DeviceConfig:readList", "Device " + id);
+            Log.d("DeviceConfigFragment:readList", "Device " + id);
             DeviceConfig deviceConfig = new DeviceConfig(context, id);
             if (deviceConfig.read()) {
                 deviceConfigs.put(id, deviceConfig);
@@ -130,13 +140,14 @@ public class DeviceConfig {
         mAuthConfig = new JSONObject();
     }
 
-    public DeviceConfig(Context context, String deviceName, String type, boolean https, String host, int port) {
+    public DeviceConfig(Context context, String deviceName, String type, boolean https, String host, int port, String basePath) {
         mDbHelper = new ConfigDbHelper(context);
         mDeviceName = deviceName;
         mType = type;
         mHttps = https;
         mHost = host;
         mPort = port;
+        mBasePath = basePath;
         mAuthConfig = new JSONObject();
     }
 
@@ -152,6 +163,7 @@ public class DeviceConfig {
         values.put(DeviceConfigContract.DeviceEntry.COLUMN_NAME_HTTPS, mHttps);
         values.put(DeviceConfigContract.DeviceEntry.COLUMN_NAME_HOST, mHost);
         values.put(DeviceConfigContract.DeviceEntry.COLUMN_NAME_PORT, mPort);
+        values.put(DeviceConfigContract.DeviceEntry.COLUMN_NAME_PATH, mBasePath);
         values.put(DeviceConfigContract.DeviceEntry.COLUMN_NAME_AUTH_CONFIG, mAuthConfig.toString());
 
         // Insert the new row, returning the primary key value of the new row
@@ -183,6 +195,7 @@ public class DeviceConfig {
                 DeviceConfigContract.DeviceEntry.COLUMN_NAME_HTTPS,
                 DeviceConfigContract.DeviceEntry.COLUMN_NAME_HOST,
                 DeviceConfigContract.DeviceEntry.COLUMN_NAME_PORT,
+                DeviceConfigContract.DeviceEntry.COLUMN_NAME_PATH,
                 DeviceConfigContract.DeviceEntry.COLUMN_NAME_AUTH_CONFIG
         };
 
@@ -199,7 +212,7 @@ public class DeviceConfig {
 
         // Anything found
         if (cursor.getCount() == 0) {
-            Log.d("DeviceConfig", "Device not found!");
+            Log.d("DeviceConfigFragment", "Device not found!");
             db.close();
             return false;
         }
@@ -211,6 +224,7 @@ public class DeviceConfig {
         mHttps = (cursor.getInt(cursor.getColumnIndexOrThrow(DeviceConfigContract.DeviceEntry.COLUMN_NAME_HTTPS)) > 0);
         mHost = cursor.getString(cursor.getColumnIndexOrThrow(DeviceConfigContract.DeviceEntry.COLUMN_NAME_HOST));
         mPort = cursor.getInt(cursor.getColumnIndexOrThrow(DeviceConfigContract.DeviceEntry.COLUMN_NAME_PORT));
+        mBasePath = cursor.getString(cursor.getColumnIndexOrThrow(DeviceConfigContract.DeviceEntry.COLUMN_NAME_PATH));
         try {
             mAuthConfig = new JSONObject(cursor.getString(cursor.getColumnIndexOrThrow(DeviceConfigContract.DeviceEntry.COLUMN_NAME_AUTH_CONFIG)));
         } catch (JSONException e) {

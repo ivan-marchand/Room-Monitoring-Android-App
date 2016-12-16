@@ -41,8 +41,7 @@
 
         <receiver
             android:name=".receiver.MonitorRoomReceiver"
-            android:enabled="true"
-            android:exported="true" />
+            android:enabled="true"/>
         <receiver
             android:name=".receiver.BootReceiver"
             android:enabled="false">
@@ -52,7 +51,7 @@
         </receiver>
 
         <activity
-            android:name=".RoomDetailsActivity"
+            android:name=".SensorDetailsActivity"
             android:label="@string/title_activity_room_details"
             android:parentActivityName=".MainActivity">
             <meta-data
@@ -65,6 +64,13 @@
         <activity
             android:name=".SensorConnectionActivity"
             android:label="@string/title_activity_sensor"
+            android:parentActivityName=".MainActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="marchandivan.RoomMonitoring.MainActivity" />
+        </activity>
+        <activity android:name=".ManageDevicesActivity"
+            android:label="@string/manage_sensors"
             android:parentActivityName=".MainActivity">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"

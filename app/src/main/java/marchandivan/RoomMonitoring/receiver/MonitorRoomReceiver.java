@@ -10,23 +10,24 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
-import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.util.Pair;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONException;
-import org.json.JSONObject;
 
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import marchandivan.RoomMonitoring.AlarmActivity;
 import marchandivan.RoomMonitoring.R;
+import marchandivan.RoomMonitoring.adapter.ThermostatModeAdapter;
 import marchandivan.RoomMonitoring.db.AlarmConfig;
 import marchandivan.RoomMonitoring.db.DeviceConfig;
 import marchandivan.RoomMonitoring.db.SensorConfig;
@@ -45,11 +46,8 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
     private boolean mAlarmActivated = false;
 
     // TextView to update
-    static private HashMap<Long, HashMap<String, Pair<TextView, TextView> > > mTextViewListeners = new HashMap<Long, HashMap<String, Pair<TextView,TextView>>>();
-
-    // Callbacks
-    static private HashMap<String, Runnable> mPreUpdateCallbacks = new HashMap<String, Runnable>();
-    static private HashMap<String, Runnable> mPostUpdateCallbacks = new HashMap<String, Runnable>();
+    static private HashMap<Long, HashMap<String, Pair<TextView, TextView> > > mTemperatureDisplayListeners = new HashMap<>();
+    static private HashMap<Long, HashMap<String, Pair<TextView, Spinner> > > mThermostatDisplayListeners = new HashMap<>();
 
     // Activate the monitoring
     public static void Activate(Context context) {
@@ -79,7 +77,7 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
 
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         am.cancel(pendingIntent);
-        Log.d("MonitorRoom", "Deactivate monitoring");
+        Log.d("MonitorSensor", "Deactivate monitoring");
 
         // Disable boot receiver
         ComponentName receiver = new ComponentName(context, BootReceiver.class);
@@ -90,74 +88,63 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
                 PackageManager.DONT_KILL_APP);
     }
 
-    protected class Update extends AsyncTask<Void, Void, JSONObject> {
+    protected class Update extends AsyncTask<Void, Void, Void> {
         Context mContext;
-        SensorConfig mSensorConfig;
+        DeviceConfig mDeviceConfig;
+        List<SensorConfig> mSensorConfigs;
 
-        public Update(Context context, SensorConfig sensorConfig) {
+        public Update(Context context, DeviceConfig deviceConfig) {
             mContext = context;
-            mSensorConfig = sensorConfig;
+            mDeviceConfig = deviceConfig;
+            mSensorConfigs = SensorConfig.GetList(context, mDeviceConfig.getId());
         }
 
-        protected JSONObject doInBackground(Void... voids) {
-            // Call callbacks
-            for (Runnable callback : mPreUpdateCallbacks.values()) {
-                callback.run();
-            }
-            DeviceConfig deviceConfig = new DeviceConfig(mContext, mSensorConfig.getDeviceId());
-            deviceConfig.read();
-            Sensor sensor = SensorFactory.Get(deviceConfig.getType());
-            return sensor.getSensorMeasure(mContext, mSensorConfig);
+        @Override
+        protected Void doInBackground(Void... voids) {
+            Log.d("MonitorSensor", "Update device " + mDeviceConfig.toString());
+            Sensor sensor = SensorFactory.Get(mDeviceConfig.getType());
+            sensor.updateSensor(mContext, mDeviceConfig, mSensorConfigs);
+            return null;
         }
 
-        protected void onPostExecute(JSONObject result) {
-            try {
-                long lastUpdate = System.currentTimeMillis();
-                mSensorConfig.update(lastUpdate, result);
+        @Override
+        protected void onPostExecute(Void voids) {
+            for (SensorConfig sensorConfig : mSensorConfigs) {
+                if (sensorConfig.isVisible()) {
+                    // Update registered views
+                    UpdateViews(sensorConfig);
 
-                // Display error if any
-                if (result.has("error")) {
-                    Toast.makeText(mContext, result.getString("error"), Toast.LENGTH_SHORT).show();
+                    // Check alarm
+                    checkAlarm(mContext, sensorConfig);
                 }
-                // Update registered views
-                UpdateViews(mSensorConfig.getId(), mSensorConfig.getTemperature(), mSensorConfig.getHumidity());
-
-                // Call callbacks
-                for (Runnable callback : mPostUpdateCallbacks.values()) {
-                    callback.run();
-                }
-
-            } catch (Exception e) {
-                Log.d("UpdateRoom", "Error " + e.toString());
             }
-            // Check alarm
-            checkAlarm(mContext, mSensorConfig);
         }
     }
 
-    // Update room temp
-    public static boolean Update(Activity parent) {
+    // Update sensor temp
+    public static void Update(Activity parent) {
         MonitorRoomReceiver monitorRoomReceiver = new MonitorRoomReceiver();
-        return monitorRoomReceiver.update(parent);
+        monitorRoomReceiver.update(parent);
     }
 
-    public boolean update(Activity parent) {
+    public void update(Activity parent) {
 
         this.configure(parent.getBaseContext());
         final Context context = parent.getBaseContext();
 
         // Update Room Temperature
-        ArrayList<Update> updates = new ArrayList<>();
-        for (SensorConfig sensorConfig: SensorConfig.GetMap(context).values()) {
-            Update update = new Update(context, sensorConfig);
+        LinkedList<Update> updates = new LinkedList<>();
+        for (DeviceConfig deviceConfig: DeviceConfig.GetMap(context).values()) {
+            Update update = new Update(context, deviceConfig);
             updates.add(update);
-            update.execute();
+            // Execute in parallel
+            update.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         }
 
         // Wait for all tasks to complete
         for (Update update: updates) {
             try {
-                update.get(10, TimeUnit.SECONDS);
+                update.get(30, TimeUnit.SECONDS);
             } catch (Exception e) {
                 parent.runOnUiThread(new Runnable() {
                     @Override
@@ -165,28 +152,49 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
                         Toast.makeText(context, context.getString(R.string.timeout), Toast.LENGTH_LONG).show();
                     }
                 });
-                return false;
             }
         }
-        return true;
     }
 
     public static void UpdateViews(Context context) {
         for (SensorConfig sensorConfig: SensorConfig.GetMap(context).values()) {
-            UpdateViews(sensorConfig.getId(), sensorConfig.getTemperature(), sensorConfig.getHumidity());
+            UpdateViews(sensorConfig);
         }
     }
 
-    private static void UpdateViews(long sensorId, Double temperature, Double humidity) {
-        if (mTextViewListeners.containsKey(sensorId)) {
-            for(Pair<TextView, TextView> sensorViews : mTextViewListeners.get(sensorId).values()) {
-                Log.d("MonitorRoom", "Updating sensor " + sensorId);
+    private static void UpdateViews(SensorConfig sensorConfig) {
+        UpdateViews(sensorConfig.getId(), sensorConfig.getTemperature(), sensorConfig.getHumidity(), sensorConfig.getThermostatTemperature(), sensorConfig.getThermostatMode());
+    }
+
+    private static void UpdateViews(long sensorId, Double temperature, Double humidity, Integer temperatureCommand, SensorConfig.ThermostatMode mode) {
+        if (mTemperatureDisplayListeners.containsKey(sensorId)) {
+            Log.d("MonitorSensor", "Update thermometer views for sensor " + sensorId);
+            for(Pair<TextView, TextView> sensorViews : mTemperatureDisplayListeners.get(sensorId).values()) {
                 Context context = sensorViews.first.getContext();
                 // Temperature
-                sensorViews.first.setText(temperature != null ? String.format("%.1f F", temperature) : context.getString(R.string.temperature_place_holder));
+                sensorViews.first.setText(temperature != null ? String.format("%.1f\u00b0", temperature) : context.getString(R.string.temperature_place_holder));
                 // Humidity
                 sensorViews.second.setText(humidity != null ? String.format("%.1f %%", humidity) : context.getString(R.string.humidity_place_holder));
             }
+        } else {
+            Log.d("MonitorSensor", "No view registered for sensor " + sensorId);
+        }
+
+        if (mThermostatDisplayListeners.containsKey(sensorId)) {
+            Log.d("MonitorSensor", "Update thermostat views for sensor " + sensorId);
+            for(Pair<TextView, Spinner> sensorViews : mThermostatDisplayListeners.get(sensorId).values()) {
+                Context context = sensorViews.first.getContext();
+                // Temperature
+                sensorViews.first.setText(temperatureCommand != null ? String.format("%1d\u00b0", temperatureCommand) : context.getString(R.string.temperature_command_place_holder));
+                // Mode
+                Spinner thermostatModeSpinner = sensorViews.second;
+                ThermostatModeAdapter adapter = (ThermostatModeAdapter) thermostatModeSpinner.getAdapter();
+                int position = adapter == null ? 0 : adapter.getPosition(mode == null ? SensorConfig.ThermostatMode.OFF : mode);
+                thermostatModeSpinner.setTag(R.id.position, position);
+                thermostatModeSpinner.setSelection(position);
+            }
+        } else {
+            Log.d("MonitorSensor", "No view registered for sensor " + sensorId);
         }
     }
 
@@ -196,14 +204,17 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
         this.configure(context);
 
         // Update Room Temperature
-        for (SensorConfig sensorConfig: SensorConfig.GetMap(context).values()) {
-            new Update(context, sensorConfig).execute();
+        for (DeviceConfig deviceConfig: DeviceConfig.GetMap(context).values()) {
+            new Update(context, deviceConfig).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         }
 
     }
 
     private void checkAlarm(Context context, SensorConfig sensorConfig) {
         try {
+            // Read from Db in case a current task already fired an alarm
+            sensorConfig.read();
+
             // Check min/max temp
             AlarmConfig alarmConfig = new AlarmConfig(context, sensorConfig.getId());
             if (mAlarmActivated && !sensorConfig.measureHasExpired() && !inQuietPeriod(sensorConfig)) {
@@ -212,9 +223,10 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
                         sensorConfig.updateAlarm();
                         Log.d("MonitorRoom", "Firing alarm!");
                         Intent alarmIntent = new Intent(context, AlarmActivity.class);
-                        Bundle args = new Bundle();
+
                         // Setup the alarm
                         alarmIntent.putExtra("sensor_id", sensorConfig.getId());
+                        alarmIntent.putExtra("temperature", sensorConfig.getTemperature());
                         alarmIntent.putExtra("max_temperature", alarm.mMaxTemp);
                         alarmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         context.startActivity(alarmIntent);
@@ -265,15 +277,34 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
     static public void Register(long sensorId, String key, TextView tempTextView, TextView humidityTextView) {
         try {
 
-            if (!mTextViewListeners.containsKey(sensorId)) {
-                mTextViewListeners.put(sensorId, new HashMap<String, Pair<TextView, TextView>>());
+            if (!mTemperatureDisplayListeners.containsKey(sensorId)) {
+                mTemperatureDisplayListeners.put(sensorId, new HashMap<String, Pair<TextView, TextView>>());
             }
-            mTextViewListeners.get(sensorId).put(key, new Pair<TextView, TextView>(tempTextView, humidityTextView));
+            mTemperatureDisplayListeners.get(sensorId).put(key, new Pair<TextView, TextView>(tempTextView, humidityTextView));
 
             // Update display
             SensorConfig sensorConfig = new SensorConfig(tempTextView.getContext(), sensorId);
             sensorConfig.read();
-            UpdateViews(sensorId, sensorConfig.getTemperature(), sensorConfig.getHumidity());
+            UpdateViews(sensorConfig);
+
+        }
+        catch (Exception e) {
+
+        }
+    }
+
+    static public void Register(long sensorId, String key, TextView tempTextView, Spinner modeSpinner) {
+        try {
+
+            if (!mThermostatDisplayListeners.containsKey(sensorId)) {
+                mThermostatDisplayListeners.put(sensorId, new HashMap<String, Pair<TextView, Spinner>>());
+            }
+            mThermostatDisplayListeners.get(sensorId).put(key, new Pair<TextView, Spinner>(tempTextView, modeSpinner));
+
+            // Update display
+            SensorConfig sensorConfig = new SensorConfig(tempTextView.getContext(), sensorId);
+            sensorConfig.read();
+            UpdateViews(sensorConfig);
 
         }
         catch (Exception e) {
@@ -282,28 +313,11 @@ public class MonitorRoomReceiver extends BroadcastReceiver {
     }
 
     static public void Unregister(long sensorId, String key) {
-        if (mTextViewListeners.containsKey(sensorId) &&  mTextViewListeners.get(sensorId).containsKey(key)) {
-            mTextViewListeners.get(sensorId).remove(key);
+        if (mTemperatureDisplayListeners.containsKey(sensorId) && mTemperatureDisplayListeners.get(sensorId).containsKey(key)) {
+            mTemperatureDisplayListeners.get(sensorId).remove(key);
         }
-    }
-
-    static public void AddPostUpdateCallback(long sensorId, String key, Runnable callback) {
-        mPostUpdateCallbacks.put(sensorId + "_" + key, callback);
-    }
-
-    static public void RemovePostUpdateCallback(long sensorId, String key) {
-        if (mPostUpdateCallbacks.containsKey(sensorId + "_" + key)) {
-            mPostUpdateCallbacks.remove(sensorId  + "_" + key);
-        }
-    }
-
-    static public void AddPreUpdateCallback(long sensorId, String key, Runnable callback) {
-        mPreUpdateCallbacks.put(sensorId + "_" + key, callback);
-    }
-
-    static public void RemovePreUpdateCallback(long sensorId, String key) {
-        if (mPreUpdateCallbacks.containsKey(sensorId + "_" + key)) {
-            mPreUpdateCallbacks.remove(sensorId  + "_" + key);
+        if (mThermostatDisplayListeners.containsKey(sensorId) && mThermostatDisplayListeners.get(sensorId).containsKey(key)) {
+            mThermostatDisplayListeners.get(sensorId).remove(key);
         }
     }
 

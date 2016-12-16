@@ -2,11 +2,10 @@
 
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="android:imageButtonStyle">@style/ImageButton</item>
+        <item name="imageButtonStyle">@style/TransparentImageButton</item>
     </style>
 
-    <style name="ImageButton">
-        <item name="android:padding">16dp</item>
+    <style name="TransparentImageButton">
         <item name="android:background">@null</item>
         <item name="android:cropToPadding">true</item>
     </style>

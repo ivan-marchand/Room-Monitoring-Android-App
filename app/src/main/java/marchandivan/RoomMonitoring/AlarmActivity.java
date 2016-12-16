@@ -23,11 +23,6 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import org.json.JSONException;
-
-
-import java.util.HashMap;
-
 import marchandivan.RoomMonitoring.db.SensorConfig;
 
 
@@ -36,7 +31,8 @@ public class AlarmActivity extends Activity {
     private Boolean mAlarmVibrate = false;
     private Integer mSilenceAfter;
     private SensorConfig mSensorConfig;
-    private Integer mMaxTemperature = 0;
+    private Double mTemperature;
+    private Integer mMaxTemperature;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,17 +50,17 @@ public class AlarmActivity extends Activity {
         // Get sensor config
         mSensorConfig = new SensorConfig(getBaseContext(), getIntent().getExtras().getLong("sensor_id"));
         mSensorConfig.read();
+        mTemperature = getIntent().getExtras().getDouble("temperature");
         mMaxTemperature = getIntent().getExtras().getInt("max_temperature");
         TextView sensorTextView = (TextView)findViewById(R.id.temperature_alert_sensor);
         sensorTextView.setText(mSensorConfig.getName());
 
         // Update Temperature display
-        double temperature = mSensorConfig.getTemperature();
         TextView temperatureTextView = (TextView)findViewById(R.id.temperature_alert_temperature);
-        temperatureTextView.setText(String.format("%.1f F", temperature));
+        temperatureTextView.setText(String.format("%.1f F", mTemperature));
 
         // Update background color and alert icon
-        if (temperature > mMaxTemperature) {
+        if (mTemperature > mMaxTemperature) {
             FrameLayout alarmScreen = (FrameLayout)findViewById(R.id.alarm_screen);
             alarmScreen.setBackgroundColor(getResources().getColor(R.color.orange_red));
             ImageView alertIcon = (ImageView)findViewById(R.id.temperature_alert_icon);

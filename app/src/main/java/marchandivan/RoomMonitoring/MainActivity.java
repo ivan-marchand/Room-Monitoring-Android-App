@@ -1,6 +1,9 @@
 package marchandivan.RoomMonitoring;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.content.Intent;
@@ -15,7 +18,9 @@ import android.view.View;
 import android.widget.ProgressBar;
 
 import marchandivan.RoomMonitoring.db.SensorConfig;
+import marchandivan.RoomMonitoring.dialog.DeviceDialogBuilder;
 import marchandivan.RoomMonitoring.dialog.SensorDialogBuilder;
+import marchandivan.RoomMonitoring.fragment.DeviceConfigFragment;
 import marchandivan.RoomMonitoring.fragment.SensorFragment;
 import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
 
@@ -23,22 +28,27 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateDisplay() {
         try {
+            Log.d("MainActivity", "updateDisplay");
             // Add new room fragment
             FragmentManager fragmentManager = getSupportFragmentManager();
             FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
 
             for (SensorConfig sensorConfig : SensorConfig.GetMap(this).values()) {
+                String tag = "sensor_list_fragment_" + sensorConfig.getId() + "_" + sensorConfig.getName();
+                Fragment existingFragment = fragmentManager.findFragmentByTag(tag);
                 // Should be visible?
-                SensorFragment fragment = new SensorFragment();
-                // Pass the name as parameter
-                Bundle args = new Bundle();
-                args.putLong("sensor_id", sensorConfig.getId());
-                fragment.setArguments(args);
-                // Add fragment to main activity
-                String aTag = "sensor_list_fragment_" + sensorConfig.getId() + "_" + sensorConfig.getName();
-                if (fragmentManager.findFragmentByTag(aTag) == null) {
-                    Log.d("updateDisplay", "Add fragment for " + aTag);
-                    fragmentTransaction.add(R.id.sensor_list_table, fragment, aTag);
+                if (sensorConfig.isVisible()) {
+                    if (existingFragment == null) {
+                        SensorFragment newFragment = new SensorFragment();
+                        // Pass the name as parameter
+                        Bundle args = new Bundle();
+                        args.putLong("sensor_id", sensorConfig.getId());
+                        newFragment.setArguments(args);
+                        Log.d("updateDisplay", "Add fragment for " + tag);
+                        fragmentTransaction.add(R.id.sensor_list_table, newFragment, tag);
+                    }
+                } else if (existingFragment != null) {
+                    fragmentTransaction.remove(existingFragment);
                 }
             }
 
@@ -49,9 +59,8 @@ public class MainActivity extends AppCompatActivity {
 
             // Update temp/humidity display
             MonitorRoomReceiver.UpdateViews(getBaseContext());
-        }
-        catch (Exception e) {
-
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -66,6 +75,22 @@ public class MainActivity extends AppCompatActivity {
 
         // Activate the room monitoring
         MonitorRoomReceiver.Activate(this);
+
+        // No sensor?
+        if (SensorConfig.GetMap(this.getBaseContext()).isEmpty()) {
+            final Activity activity = this;
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle(R.string.ask_add_device);
+            builder.setPositiveButton(R.string.yes, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    DeviceDialogBuilder deviceDialogBuilder = new DeviceDialogBuilder(activity);
+                    deviceDialogBuilder.create().show();
+                }
+            });
+            builder.setNegativeButton(R.string.no, null);
+            builder.create().show();
+        }
     }
 
     @Override
@@ -76,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
         updateDisplay();
 
         // Get current room temp if not available
-        if (SensorConfig.MeasureHasExpired(this.getBaseContext())) {
+        if (!SensorConfig.GetMap(this.getBaseContext()).isEmpty() && SensorConfig.MeasureHasExpired(this.getBaseContext())) {
             final Activity activity = this;
             Thread thread = new Thread(new Runnable() {
                 @Override
@@ -93,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
                     });
                     // Get current temperature
                     MonitorRoomReceiver.Update(activity);
+
                     // Stop and hide progress bar
                     runOnUiThread(new Runnable() {
                         @Override
@@ -125,6 +151,7 @@ public class MainActivity extends AppCompatActivity {
         getMenuInflater().inflate(marchandivan.RoomMonitoring.R.menu.menu_main, menu);
         return true;
     }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
@@ -136,15 +163,25 @@ public class MainActivity extends AppCompatActivity {
         if (id == R.id.action_settings) {
             openSettings();
             return true;
+        } else if (id == R.id.add_sensor) {
+            addDevice();
+            return true;
+        } else if (id == R.id.manage_sensors) {
+            manageDevices();
         }
 
         return super.onOptionsItemSelected(item);
     }
 
-    public void addSensor(View view) {
+    public void manageDevices() {
+        Intent intent = new Intent(this, ManageDevicesActivity.class);
+        startActivity(intent);
+    }
+
+    public void addDevice() {
         // Build and show dialog
-        SensorDialogBuilder addSensorDialogBuilder = new SensorDialogBuilder(this);
-        addSensorDialogBuilder.show();
+        DeviceDialogBuilder deviceDialogBuilder = new DeviceDialogBuilder(this);
+        deviceDialogBuilder.create().show();
     }
 
     public void openSettings() {
@@ -152,4 +189,16 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
+    public void addSensor(View view) {
+        SensorDialogBuilder sensorDialogBuilder = new SensorDialogBuilder(this, new Runnable() {
+            @Override
+            public void run() {
+                updateDisplay();
+            }
+        });
+
+        // Create and show dialog
+        AlertDialog alertDialog = sensorDialogBuilder.create();
+        alertDialog.show();
+    }
 }

@@ -20,10 +20,12 @@ import marchandivan.RoomMonitoring.http.SSLTrustManager;
  */
 public class SslConfirmDialogBuilder {
     private Context mContext;
+    private SSLTrustManager mSSLTrustManager;
     private AlertDialog.Builder mBuilder;
 
-    public SslConfirmDialogBuilder(Context context) {
+    public SslConfirmDialogBuilder(Context context, SSLTrustManager sslTrustManager) {
         mContext = context;
+        mSSLTrustManager = sslTrustManager;
         mBuilder = new AlertDialog.Builder(context);
     }
 
@@ -56,7 +58,7 @@ public class SslConfirmDialogBuilder {
 
         // Message
         String msg = "";
-        SSLTrustManager.SslFailureReason reason = SSLTrustManager.instance(mContext, host, port).GetFailureReason();
+        SSLTrustManager.SslFailureReason reason = SSLTrustManager.instance(mContext, host, port).getFailureReason();
         if (reason == SSLTrustManager.SslFailureReason.CERT_NOT_TRUSTED) {
             msg = mContext.getString(R.string.ssl_confirm, host);
         } else {
@@ -81,11 +83,10 @@ public class SslConfirmDialogBuilder {
         mBuilder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                SSLTrustManager.SaveCertificate(rememberChoice.isChecked());
+                mSSLTrustManager.saveCertificate(rememberChoice.isChecked());
             }
         });
         mBuilder.setNegativeButton("No", null);
-        mBuilder.create().show();
 
         return mBuilder.create();
     }

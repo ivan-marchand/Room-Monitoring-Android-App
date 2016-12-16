@@ -12,19 +12,11 @@
             android:layout_height="match_parent"
             android:orientation="horizontal">
             <Spinner
-                android:id="@+id/device_selector"
-                android:layout_width="0dp"
+                android:id="@+id/sensor_selector"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="2"
                 android:layout_gravity="center_vertical">
             </Spinner>
-            <Button
-                android:id="@+id/add_device"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/add_new"
-                android:layout_gravity="center_vertical"/>
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

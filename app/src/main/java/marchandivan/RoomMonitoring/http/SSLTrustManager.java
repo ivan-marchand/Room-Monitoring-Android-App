@@ -9,6 +9,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -45,7 +46,7 @@ public final class SSLTrustManager {
 
     private Context mContext;
 
-    private static SSLTrustManager instance;
+    private static HashMap<String, SSLTrustManager> instances = new HashMap<>();
 
     private SSLTrustManager(Context context, String hostName, String port) {
         mContext = context;
@@ -54,31 +55,31 @@ public final class SSLTrustManager {
     }
 
     public static synchronized SSLTrustManager instance(Context context, String hostName, String port) {
-        if (instance == null) {
+        String url = hostName + ":" + port;
+        SSLTrustManager instance;
+        if (!instances.containsKey(url)) {
             instance = new SSLTrustManager(context, hostName, port);
             instance.init();
+            instances.put(url, instance);
         } else {
+            instance = instances.get(url);
             instance.mContext = context;
-            instance.mHostName = hostName;
-            instance.mUrl = hostName + ":" + port;
         }
 
         return instance;
     }
 
-    public static SslFailureReason GetFailureReason() {
+    public SslFailureReason getFailureReason() {
         SslFailureReason reason = null;
-        if (instance != null && instance.manager != null) {
-            reason = instance.manager.getReason();
+        if (manager != null) {
+            reason = manager.getReason();
         }
 
         return reason != null ? reason : SslFailureReason.CERT_NOT_TRUSTED;
     }
 
-    public static synchronized void SaveCertificate(boolean rememberChoice) {
-        if (instance != null) {
-            CertsManager.instance(instance.mContext).saveCert(instance.mUrl, instance.getCertsChain(), rememberChoice);
-        }
+    public synchronized void saveCertificate(boolean rememberChoice) {
+        CertsManager.instance(mContext).saveCert(mUrl, getCertsChain(), rememberChoice);
     }
 
     private void init() {

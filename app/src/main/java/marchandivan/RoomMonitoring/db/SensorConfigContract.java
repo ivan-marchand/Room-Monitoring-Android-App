@@ -15,6 +15,7 @@ public class SensorConfigContract {
         public static final String TABLE_NAME = "sensor_config";
         public static final String COLUMN_NAME_SENSOR = "sensor";
         public static final String COLUMN_NAME_TYPE = "type";
+        public static final String COLUMN_NAME_VISIBLE = "visible";
         public static final String COLUMN_NAME_LAST_UPDATE = "last_update";
         public static final String COLUMN_NAME_LAST_ALARM = "last_alarm";
         public static final String COLUMN_NAME_DATA = "data";

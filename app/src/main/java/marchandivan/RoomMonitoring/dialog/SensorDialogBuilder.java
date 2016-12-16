@@ -9,10 +9,13 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Spinner;
 
+import marchandivan.RoomMonitoring.MainActivity;
 import marchandivan.RoomMonitoring.R;
 import marchandivan.RoomMonitoring.SensorConnectionActivity;
-import marchandivan.RoomMonitoring.adapter.DeviceConfigListAdapter;
+import marchandivan.RoomMonitoring.adapter.SensorListAdapter;
 import marchandivan.RoomMonitoring.db.DeviceConfig;
+import marchandivan.RoomMonitoring.db.SensorConfig;
+import marchandivan.RoomMonitoring.receiver.MonitorRoomReceiver;
 
 /**
  * Created by ivan on 9/8/16.
@@ -20,62 +23,52 @@ import marchandivan.RoomMonitoring.db.DeviceConfig;
 public class SensorDialogBuilder {
     private Context mContext;
     private AlertDialog.Builder mBuilder;
+    private Runnable mAddSensorCallback;
 
-    public SensorDialogBuilder(Context context) {
+    public SensorDialogBuilder(Context context, Runnable addSensorCallback) {
         mContext = context;
         mBuilder = new AlertDialog.Builder(context);
+        mAddSensorCallback = addSensorCallback;
     }
 
-    public void show() {
+    public AlertDialog create() {
 
-        // Inflate layout
-        LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        final View dialogView = inflater.inflate(R.layout.add_sensor_dialog, null);
+        // Get list of sensor
+        SensorListAdapter sensorListAdapter = new SensorListAdapter(mContext);
 
-        // Device selector
-        final Spinner deviceSelector = (Spinner) dialogView.findViewById(R.id.device_selector);
-        DeviceConfigListAdapter deviceConfigListAdapter = new DeviceConfigListAdapter(mContext);
-        deviceSelector.setAdapter(deviceConfigListAdapter);
+        if (sensorListAdapter.isEmpty()) {
+            mBuilder.setTitle(R.string.no_sensor_to_add);
+            mBuilder.setPositiveButton(R.string.ok, null);
+        } else {
+            // Inflate layout
+            LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            final View dialogView = inflater.inflate(R.layout.add_sensor_dialog, null);
 
+            // Device selector
+            final Spinner deviceSelector = (Spinner) dialogView.findViewById(R.id.sensor_selector);
+            deviceSelector.setAdapter(sensorListAdapter);
 
-        // Build the dialog
-        mBuilder.setView(dialogView);
-        mBuilder.setTitle(R.string.add_sensor);
+            // Build the dialog
+            mBuilder.setView(dialogView);
+            mBuilder.setTitle(R.string.add_sensor);
 
-        // Add confirm/cancel buttons
-        mBuilder.setPositiveButton(R.string.add_sensor, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                Spinner deviceSelector = (Spinner) dialogView.findViewById(R.id.device_selector);
-                DeviceConfig deviceConfig = (DeviceConfig) deviceSelector.getSelectedItem();
-                Intent intent = new Intent(mContext, SensorConnectionActivity.class);
-                intent.putExtra("sensorId", deviceConfig.getId());
-                mContext.startActivity(intent);
-            }
-        });
-        // Add confirm/cancel buttons
-        mBuilder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
+            // Add cancel button
+            mBuilder.setNegativeButton(R.string.cancel, null);
+            mBuilder.setPositiveButton(R.string.add_sensor, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    Spinner deviceSelector = (Spinner) dialogView.findViewById(R.id.sensor_selector);
+                    SensorConfig sensorConfig = (SensorConfig) deviceSelector.getSelectedItem();
+                    sensorConfig.updateVisibility(true);
 
-            }
-        });
+                    // Call callback
+                    mAddSensorCallback.run();
+                }
+            });
+        }
 
-        final AlertDialog alertDialog = mBuilder.create();
-        // Add new device
-        Button addNewButton = (Button) dialogView.findViewById(R.id.add_device);
-        addNewButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Add Device dialog
-                DeviceDialogBuilder deviceDialogBuilder = new DeviceDialogBuilder(mContext);
-                AlertDialog deviceDialog = deviceDialogBuilder.create();
-                deviceDialog.show();
-                alertDialog.dismiss();
-            }
-        });
+        return mBuilder.create();
 
-        alertDialog.show();
     }
 
 }

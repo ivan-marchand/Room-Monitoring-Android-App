@@ -28,16 +28,6 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
                 </LinearLayout>
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1sp"
-                    android:background="#000000"/>
-                <ImageButton
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:src="@drawable/add"
-                    android:onClick="addSensor"
-                    style="?android:attr/borderlessButtonStyle" />
             </LinearLayout>
         </ScrollView>
     </LinearLayout>

@@ -13,6 +13,8 @@ import java.util.ArrayList;
 
 import marchandivan.RoomMonitoring.DeviceConnectionActivity;
 import marchandivan.RoomMonitoring.R;
+import marchandivan.RoomMonitoring.adapter.DeviceListAdapter;
+import marchandivan.RoomMonitoring.sensor.Sensor;
 import marchandivan.RoomMonitoring.sensor.SensorFactory;
 
 /**
@@ -34,13 +36,11 @@ public class DeviceDialogBuilder {
 
         // Device selector
         final Spinner spinner = (Spinner)dialogView.findViewById(R.id.device_type_selector);
-        ArrayList<String> deviceTypes = SensorFactory.GetTypes();
-        ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(mContext, R.layout.spinner_layout, deviceTypes);
-        dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(dataAdapter);
+        DeviceListAdapter adapter = new DeviceListAdapter(mContext);
+        spinner.setAdapter(adapter);
 
         // Build the dialog
-        mBuilder.setTitle(R.string.add_device);
+        mBuilder.setTitle(R.string.add_sensor);
         mBuilder.setView(dialogView);
 
         // Add confirm/cancel buttons
@@ -48,7 +48,8 @@ public class DeviceDialogBuilder {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 Intent intent = new Intent(mContext, DeviceConnectionActivity.class);
-                intent.putExtra("sensorType", spinner.getSelectedItem().toString());
+                Sensor sensor = (Sensor) spinner.getSelectedItem();
+                intent.putExtra("sensorType", sensor.getDeviceType());
                 mContext.startActivity(intent);
             }
         });

@@ -2,7 +2,22 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="marchandivan.RoomMonitoring.MainActivity">
-    <item android:id="@+id/action_settings" android:icon="@drawable/setup" android:title="@string/action_settings"
-        android:orderInCategory="100" app:showAsAction="ifRoom" >
+    <item
+        android:title="test"
+        android:id="@+id/action_more"
+        android:icon="@drawable/ic_menu_more_white"
+        android:orderInCategory="100"
+        app:showAsAction="ifRoom">
+        <menu>
+            <item android:id="@+id/add_sensor" android:title="@string/add_sensor" android:icon="@drawable/ic_menu_add"
+                android:orderInCategory="100" app:showAsAction="never" >
+            </item>
+            <item android:id="@+id/manage_sensors" android:title="@string/manage_sensors" android:icon="@drawable/ic_menu_edit"
+                android:orderInCategory="100" app:showAsAction="never" >
+            </item>
+            <item android:id="@+id/action_settings" android:icon="@drawable/ic_menu_settings" android:title="@string/action_settings"
+                android:orderInCategory="100" app:showAsAction="never" >
+            </item>
+        </menu>
     </item>
 </menu>

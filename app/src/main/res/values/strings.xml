@@ -23,8 +23,9 @@
     <string name="no">No</string>
     <string name="temperature_alert_header">Temperature Alert</string>
     <string name="temperature_alert_sensor_header">Sensor</string>
-    <string name="temperature_place_holder">--.- F</string>
-    <string name="room_place_holder">------</string>
+    <string name="temperature_place_holder">--.-\u00b0</string>
+    <string name="temperature_command_place_holder">--\u00b0</string>
+    <string name="sensor_name_place_holder">------</string>
     <string name="humidity_place_holder">--.- %</string>
     <string name="active_anytime">Active anytime</string>
     <string name="start_time">Start Time</string>
@@ -71,4 +72,21 @@
     <string name="prompt_device_name">Device Name</string>
     <string name="title_activity_sensor">Add Sensor</string>
     <string name="save">Save</string>
+    <string name="ask_add_device">You\'ve not configure any device yet, would you like to add one?</string>
+    <string name="no_sensor_to_add">No Sensor Available</string>
+    <string name="ok">Ok</string>
+    <string name="enter_credential">Enter Credential?</string>
+    <string name="prompt_base_path">Base Path</string>
+    <string name="ac">A/C</string>
+    <string name="heater">Heater</string>
+    <string name="remove_sensor">Remove Sensor</string>
+    <string name="edit_sensor_name">Edit Sensor Name</string>
+    <string name="remove_sensor_confirm">Remove the sensor %s?</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="manage_sensors">Manage Sensors</string>
+    <string name="device_name_place_holder">----------</string>
+    <string name="sensor_icon">Sensor Icon</string>
+    <string name="show_hide">Show or hide Sensor</string>
 </resources>

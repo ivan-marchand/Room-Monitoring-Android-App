@@ -3,6 +3,7 @@ package marchandivan.RoomMonitoring;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
+import android.app.Activity;
 import android.support.v7.app.AppCompatActivity;
 
 import android.os.AsyncTask;
@@ -17,6 +18,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -44,6 +46,8 @@ public class DeviceConnectionActivity extends AppCompatActivity {
     private CheckBox mUseHttpsView;
     private AutoCompleteTextView mHostView;
     private AutoCompleteTextView mPortView;
+    private AutoCompleteTextView mBasePathView;
+    private CheckBox mUseAuthView;
     private AutoCompleteTextView mUserView;
     private EditText mPasswordView;
     private View mProgressView;
@@ -78,17 +82,31 @@ public class DeviceConnectionActivity extends AppCompatActivity {
             mUseHttpsView = (CheckBox) findViewById(R.id.use_https);
             mHostView = (AutoCompleteTextView) findViewById(R.id.host);
             mPortView = (AutoCompleteTextView) findViewById(R.id.port);
+            mBasePathView = (AutoCompleteTextView) findViewById(R.id.base_path);
+            // Prepopulate port nb
+            mPortView.setText("80");
+            mUseHttpsView.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    // If user didn't enter a port nb manually yet
+                    if (mPortView.getText().toString().equals("80") || mPortView.getText().toString().equals("443")) {
+                        mPortView.setText(isChecked ? "443" : "80");
+                    }
+                }
+            });
+            // Give base path?
+            if (mSensor.needBasePath()) {
+                findViewById(R.id.base_path_form).setVisibility(View.VISIBLE);
+                mBasePathView.setText("/");
+            }
         }
 
         switch (mSensor.getAuthType()) {
             case USER_PASSWORD:
-                findViewById(R.id.user_password_form).setVisibility(View.VISIBLE);
                 mUserView = (AutoCompleteTextView) findViewById(R.id.user);
-                mUserView.setText("marchandivan@gmail.com");
                 // Force password re-entry in case of modification
                 mPasswordView = (EditText) findViewById(R.id.password);
                 //mPasswordView.setText("");
-                mPasswordView.setText("stadiumIM01");
                 mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
                     @Override
                     public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
@@ -99,6 +117,18 @@ public class DeviceConnectionActivity extends AppCompatActivity {
                         return false;
                     }
                 });
+                mUseAuthView = (CheckBox) findViewById(R.id.use_auth);
+                if (mSensor.mandatoryCredential()) {
+                    findViewById(R.id.user_password_form).setVisibility(View.VISIBLE);
+                } else {
+                    mUseAuthView.setVisibility(View.VISIBLE);
+                    mUseAuthView.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                        @Override
+                        public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                            findViewById(R.id.user_password_form).setVisibility(isChecked ? View.VISIBLE : View.GONE);
+                        }
+                    });
+                }
                 break;
 
             case NONE:
@@ -106,14 +136,20 @@ public class DeviceConnectionActivity extends AppCompatActivity {
                 break;
         }
 
-        Button mUserSignInButton = (Button) findViewById(R.id.connect_button);
-        mUserSignInButton.setOnClickListener(new OnClickListener() {
+        Button connectButton = (Button) findViewById(R.id.connect_button);
+        connectButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
                 attemptConnection();
             }
         });
-
+        Button cancelButton = (Button) findViewById(R.id.cancel_button);
+        cancelButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
         mConnectionFormView = findViewById(R.id.connection_form);
         mProgressView = findViewById(R.id.connection_progress);
     }
@@ -148,6 +184,7 @@ public class DeviceConnectionActivity extends AppCompatActivity {
         boolean useHttps = mUseHttpsView != null ? mUseHttpsView.isChecked() : false;
         String host = mHostView != null ? mHostView.getText().toString() : "";
         int port = mPortView != null ? Integer.valueOf(mPortView.getText().toString()) : 0;
+        String basePath = mBasePathView != null ? mBasePathView.getText().toString() : "";
         String user = mUserView != null ? mUserView.getText().toString() : "";
         String password = mPasswordView != null ? mPasswordView.getText().toString() : "";
 
@@ -178,14 +215,16 @@ public class DeviceConnectionActivity extends AppCompatActivity {
         if (!cancel) {
             switch (mSensor.getAuthType()) {
                 case USER_PASSWORD:
-                    if (TextUtils.isEmpty(user)) {
-                        mUserView.setError(getString(R.string.error_field_required));
-                        focusView = mUserView;
-                        cancel = true;
-                    } else if (TextUtils.isEmpty(password)) {
-                        mPasswordView.setError(getString(R.string.error_field_required));
-                        focusView = mPasswordView;
-                        cancel = true;
+                    if (mSensor.mandatoryCredential() || mUseAuthView.isChecked()) {
+                        if (TextUtils.isEmpty(user)) {
+                            mUserView.setError(getString(R.string.error_field_required));
+                            focusView = mUserView;
+                            cancel = true;
+                        } else if (TextUtils.isEmpty(password)) {
+                            mPasswordView.setError(getString(R.string.error_field_required));
+                            focusView = mPasswordView;
+                            cancel = true;
+                        }
                     }
                     break;
                 case NONE:
@@ -202,7 +241,7 @@ public class DeviceConnectionActivity extends AppCompatActivity {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            mConnectionTask = new ConnectionTask(deviceName, useHttps, host, port, user, password);
+            mConnectionTask = new ConnectionTask(this, deviceName, useHttps, host, port, basePath, user, password);
             mConnectionTask.execute((Void) null);
         }
     }
@@ -250,17 +289,24 @@ public class DeviceConnectionActivity extends AppCompatActivity {
     public class ConnectionTask extends AsyncTask<Void, Void, Sensor.ConnectionResult> {
 
         private DeviceConfig mDeviceConfig;
+        private Activity mActivity;
 
-        ConnectionTask(String deviceName, boolean https, String host, int port, String user, String password) {
+        ConnectionTask(Activity activity, String deviceName, boolean https, String host, int port, String basePath, String user, String password) {
+            mActivity = activity;
             if (mSensor.needHostUrl()) {
-                mDeviceConfig = new DeviceConfig(getBaseContext(), deviceName, mSensor.getDeviceType(), https, host, port);
+                mDeviceConfig = new DeviceConfig(getBaseContext(), deviceName, mSensor.getDeviceType(), https, host, port, basePath);
+                if (mSensor.needBasePath()) {
+
+                }
             } else {
                 mDeviceConfig = new DeviceConfig(getBaseContext(), deviceName, mSensor.getDeviceType());
             }
 
             switch (mSensor.getAuthType()) {
                 case USER_PASSWORD:
-                    mDeviceConfig.setUserPassword(user, password);
+                    if (!user.isEmpty() && !password.isEmpty()) {
+                        mDeviceConfig.setUserPassword(user, password);
+                    }
             }
         }
 
@@ -268,7 +314,7 @@ public class DeviceConnectionActivity extends AppCompatActivity {
         protected Sensor.ConnectionResult doInBackground(Void... params) {
 
             try {
-                return mSensor.testConnection(getBaseContext(), mDeviceConfig);
+                return mSensor.testConnection(mActivity, mDeviceConfig);
             } catch (Exception e) {
                 return Sensor.ConnectionResult.FAILURE;
             }
@@ -277,13 +323,14 @@ public class DeviceConnectionActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(final Sensor.ConnectionResult result) {
             mConnectionTask = null;
-            showProgress(false);
 
             if (result == Sensor.ConnectionResult.SUCCESS) {
-                Toast.makeText(getBaseContext(), R.string.connection_successful, Toast.LENGTH_LONG).show();
                 // Store device
-                mDeviceConfig.add();
-
+                if (mSensor.save(getBaseContext(), mDeviceConfig)) {
+                    Toast.makeText(getBaseContext(), R.string.connection_successful, Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(getBaseContext(), R.string.connection_failed, Toast.LENGTH_LONG).show();
+                }
                 // Exit activity
                 finish();
             } else {
@@ -292,19 +339,13 @@ public class DeviceConnectionActivity extends AppCompatActivity {
                     mHostView.setError(getString(R.string.error_unable_to_connect));
                     mPortView.setError(getString(R.string.error_unable_to_connect));
                     mHostView.requestFocus();
-                } else {
-                    switch (mSensor.getAuthType()) {
-                        case USER_PASSWORD:
-                            mUserView.setError(getString(R.string.error_invalid_user_password));
-                            mPasswordView.setError(getString(R.string.error_invalid_user_password));
-                            mUserView.requestFocus();
-                            break;
-                        case NONE:
-                        default:
-                            break;
-                    }
+                } else if (mSensor.getAuthType() == Sensor.AuthType.USER_PASSWORD && (mSensor.mandatoryCredential() || mUseAuthView.isChecked())) {
+                    mUserView.setError(getString(R.string.error_invalid_user_password));
+                    mPasswordView.setError(getString(R.string.error_invalid_user_password));
+                    mUserView.requestFocus();
                 }
             }
+            showProgress(false);
         }
 
         @Override

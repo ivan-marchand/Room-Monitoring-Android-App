@@ -4,7 +4,6 @@ package marchandivan.RoomMonitoring.http;
  * Created by imarchand on 6/28/2015.
  */
 
-import android.content.ContentValues;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Handler;
@@ -47,7 +46,7 @@ public class RestClient {
     private List<HttpCookie> mHttpResponseCookies = new LinkedList<>();
     private List<HttpCookie> mHttpRequestCookies;
 
-    private static boolean mShowSslConfirmDialog = true;
+    private boolean mShowSslConfirmDialog = false;
     private Handler mUiHandler = new Handler(Looper.getMainLooper());
     private HashMap<String, String> mRequestProperty = new HashMap<>();
 
@@ -57,8 +56,13 @@ public class RestClient {
         mServerPort = port;
         mUseHttps = https;
         mUrlBase = (mUseHttps ? "https://" : "http://") + mServerHost + ":" + mServerPort.toString();
+        Log.d("RestClient", "URL Base : " + mUrlBase);
         mServerUser = null;
         mServerPassword = null;
+    }
+
+    public void setShowSslConfirmDialog(boolean showSslConfirmDialog) {
+        mShowSslConfirmDialog = showSslConfirmDialog;
     }
 
     public void setUserPassword(final String user, final String password) {
@@ -162,7 +166,9 @@ public class RestClient {
                 for (String cookieString : cookiesHeader) {
                     List<HttpCookie> cookies = HttpCookie.parse(cookieString);
                     if (!cookies.isEmpty()) {
-                        mHttpResponseCookies.add(cookies.get(0));
+                        HttpCookie cookie = cookies.get(0);
+                        Log.d("RestClient", "Set-Cookie : " + cookie.toString());
+                        mHttpResponseCookies.add(cookie);
                     }
                 }
             }
@@ -189,7 +195,6 @@ public class RestClient {
         } catch (SSLHandshakeException e) {
             Log.d("RestClient", "Error " + e.toString());
             if (mShowSslConfirmDialog) {
-                mShowSslConfirmDialog = false;
                 showSslConfirmDialog();
             }
         } catch (Exception e) {
@@ -245,12 +250,11 @@ public class RestClient {
             @Override
             public void run() {
                 try {
-                    SslConfirmDialogBuilder builder = new SslConfirmDialogBuilder(mContext);
-                    if (builder != null) {
-                        builder.create(mServerHost, mServerPort.toString());
-                    }
+                    Log.d("RestClient", "Showing SSL Confirmation Dialog");
+                    SslConfirmDialogBuilder builder = new SslConfirmDialogBuilder(mContext, SSLTrustManager.instance(mContext, mServerHost, mServerPort.toString()));
+                    builder.create(mServerHost, mServerPort.toString()).show();
                 } catch (Exception e) {
-
+                    e.printStackTrace();
                 }
             }
         });

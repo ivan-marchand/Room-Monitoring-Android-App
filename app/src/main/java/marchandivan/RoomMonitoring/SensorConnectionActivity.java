@@ -97,13 +97,6 @@ public class SensorConnectionActivity extends AppCompatActivity {
                 textView.setHint(configField.getDisplayName());
                 if (configField.getType() == Sensor.ConfigFieldType.NUMBER) {
                     textView.setInputType(InputType.TYPE_NUMBER_FLAG_DECIMAL);
-                } else if (configField.getType() == Sensor.ConfigFieldType.TEXT) {
-                    // Autocomplete if possible
-                    ArrayList<String> possibleValues = mSensor.getTextFieldValues(getBaseContext(), mDeviceConfig, configField.getKey());
-                    if (possibleValues != null && !possibleValues.isEmpty()) {
-                        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(getBaseContext(), android.R.layout.simple_list_item_1,possibleValues);
-                        textView.setAdapter(arrayAdapter);
-                    }
                 }
                 mCustomFieldViewMap.put(configField, textView);
                 return fieldTextView;
@@ -112,12 +105,6 @@ public class SensorConnectionActivity extends AppCompatActivity {
                 TextView promptView = (TextView) fieldTextListView.findViewById(R.id.prompt_view);
                 promptView.setText(configField.getDisplayName());
                 Spinner spinner = (Spinner) fieldTextListView.findViewById(R.id.text_list_view);
-                // Get list of values
-                ArrayList<String> possibleValues = mSensor.getTextFieldValues(getBaseContext(), mDeviceConfig, configField.getKey());
-                if (possibleValues != null && !possibleValues.isEmpty()) {
-                    ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(getBaseContext(), android.R.layout.simple_list_item_1,possibleValues);
-                    spinner.setAdapter(arrayAdapter);
-                }
                 mCustomFieldViewMap.put(configField, spinner);
                 return fieldTextListView;
 
@@ -240,14 +227,14 @@ public class SensorConnectionActivity extends AppCompatActivity {
         SensorConfig mSensorConfig;
 
         public ConnectionTask(String sensorName, JSONObject config) {
-            mSensorConfig = new SensorConfig(getBaseContext(), sensorName, mSensor.getType(), mDeviceConfig.getId(), config);
+            //mSensorConfig = new SensorConfig(getBaseContext(), sensorName, mSensor.getType(), mDeviceConfig.getId(), config);
         }
 
         @Override
         protected JSONObject doInBackground(Void... params) {
             JSONObject result = new JSONObject();
             try {
-                result =  mSensor.getSensorMeasure(getBaseContext(), mSensorConfig);
+                //result =  mSensor.getSensorMeasure(getBaseContext(), mSensorConfig);
             } catch (Exception e) {
             }
             return  result;
